@@ -19,3 +19,7 @@ this skill is saved for you? right?  and you have updated the claude.md file yes
 ---
 
 so the commits - we are on main - shall we checkout and commit and then back into main - also we should probs commit the learning from this aswell - we can leave out the test-minmal and test_simple.html th - i want to have functionality smoke tests everytime changes are made - do /tests folder help this?
+
+---
+
+Claude Code session ends and on every commit really?
