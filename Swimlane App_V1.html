@@ -1,0 +1,1590 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Master Swimlane Journal</title>
+    <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@400;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
+    <style>
+        /* ================= BASE & METRONOME ================= */
+        * { box-sizing: border-box; }
+
+        :root {
+            --grid-size: 44px; 
+            --left-margin: 176px; 
+            
+            --page-bg: #fdfbf7;
+            --dot-color: #cbd5e1;
+            --text-color: #1e293b;
+            --today-bg: rgba(76, 175, 80, 0.08); 
+            --weekend-bg: rgba(0, 0, 0, 0.02);
+            --track-divider: rgba(0, 0, 0, 0.12); 
+            
+            --font-ui: 'Caveat', cursive; 
+            --lc: #94a3b8; /* Default lane accent color */
+        }
+
+        body.theme-dotted {
+            --bg-pattern: radial-gradient(circle at 0 0, var(--dot-color) 1.5px, transparent 1.5px);
+            --margin-line: var(--dot-color);
+        }
+        body.theme-lined {
+            --bg-pattern: repeating-linear-gradient(transparent, transparent calc(var(--grid-size) - 1px), var(--dot-color) calc(var(--grid-size) - 1px), var(--dot-color) var(--grid-size));
+            --margin-line: #ef4444; 
+        }
+
+        body {
+            background-color: var(--page-bg); background-image: var(--bg-pattern);
+            background-size: var(--grid-size) var(--grid-size); background-position: -1px -1px; 
+            background-attachment: local; font-family: var(--font-ui); color: var(--text-color);
+            margin: 0; padding: 0; overflow-x: auto; scroll-behavior: smooth;
+        }
+
+        .journal-container { width: 100%; min-width: fit-content; margin: 0; position: relative; z-index: 20; padding-bottom: 50px; }
+        
+        .journal-container::before {
+            content: ''; position: absolute; left: var(--left-margin); top: 0; bottom: 0; 
+            width: 1px; background-color: var(--margin-line); z-index: 10;
+        }
+
+        .grid-row { display: grid; align-items: stretch; transition: grid-template-columns 0.2s ease; }
+        .v-bound { box-shadow: -1px 0 0 var(--track-divider) !important; }
+
+        /* ================= UI CONTROLS ================= */
+        .control-panel {
+            display: grid; grid-template-columns: 1fr 1fr; gap: 6px;
+            padding: 10px 10px 12px 10px; height: 100%; align-content: flex-end; position: relative;
+        }
+
+        .ui-btn {
+            font-family: var(--font-ui); font-size: 20px; font-weight: 600; color: #475569; 
+            background: #fff; border: 1px solid #cbd5e1; border-radius: 6px;
+            padding: 2px 6px; cursor: pointer; box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+            transition: all 0.1s; user-select: none; width: 100%; text-align: center;
+            display: flex; align-items: center; justify-content: center;
+        }
+        .ui-btn:active { transform: scale(0.97); }
+        .ui-btn:hover { background: #f8fafc; color: #0f172a; }
+        .ui-btn.active { background: #3b82f6; color: white; border-color: #2563eb; }
+
+        .settings-wrapper { position: relative; width: 100%; height: 100%; }
+        .settings-tray {
+            position: absolute; top: calc(100% + 5px); left: 0; 
+            background: #fff; border: 1px solid #cbd5e1; border-radius: 8px;
+            box-shadow: 0 10px 25px -5px rgba(0,0,0,0.15); padding: 15px; display: none; flex-direction: column; gap: 15px;
+            z-index: 100; width: 220px; font-family: var(--font-ui);
+        }
+        .settings-tray.is-open { display: flex; }
+        
+        .tray-section { display: flex; flex-direction: column; gap: 6px; }
+        .tray-label { font-size: 16px; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.5px;}
+        .tray-toggle-group { display: flex; gap: 5px; }
+        .tray-toggle-btn {
+            flex-grow: 1; text-align: center; font-size: 20px; font-weight: 600;
+            padding: 4px; border: 1px solid #e2e8f0; border-radius: 4px; cursor: pointer; background: #f8fafc; color: #64748b;
+        }
+        .tray-toggle-btn.active { background: #3b82f6; color: #fff; border-color: #2563eb; }
+
+        /* ================= HEADERS ================= */
+        .journal-header {
+            position: sticky; top: 0; z-index: 50; height: 132px; 
+            background-color: var(--page-bg); box-shadow: 0 2px 0 var(--text-color); 
+            will-change: transform; 
+        }
+
+        .header-track { 
+            width: 100%; padding: 0 10px 8px 10px; 
+            position: relative; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; height: 100%;
+            min-width: 0; overflow-x: hidden;
+        }
+
+        /* Lane Accent Bar */
+        .header-track::after {
+            content: ''; position: absolute; bottom: 0; left: 6px; right: 6px; height: 3px;
+            border-radius: 2px 2px 0 0; background: var(--lc); opacity: 0.5; transition: opacity 0.2s;
+        }
+        .header-track:hover::after { opacity: 1; }
+
+        .track-title {
+            line-height: 1; border: none; background: transparent; 
+            font-family: var(--font-ui); font-size: 36px; font-weight: bold; color: #0f172a;
+            text-align: center; outline: none; width: 100%; display: block;
+            transform: translateY(-4px); 
+        }
+
+        .track-controls { position: absolute; top: 10px; right: 10px; display: flex; gap: 5px; opacity: 0; transition: opacity 0.2s; }
+        .header-track:hover .track-controls { opacity: 1; }
+        @media (hover: none) { .track-controls { opacity: 1; } } 
+        
+        .ctrl-btn {
+            cursor: pointer; font-family: sans-serif; font-size: 16px; font-weight: bold; background: #fff; border-radius: 4px; width: 24px; height: 24px; 
+            display: flex; align-items: center; justify-content: center; border: 1px solid #cbd5e1; color: #64748b;
+        }
+        .ctrl-btn.del { color: #ef4444; border-color: #fca5a5; border-radius: 50%; font-size: 18px;}
+        .ctrl-btn.cdot { border-radius: 50%; width: 18px; height: 18px; border: 2px solid rgba(255,255,255,0.7); box-shadow: 0 0 0 1px rgba(0,0,0,0.2); margin-top: 3px;}
+        .ctrl-btn:hover { background: #f1f5f9; color: #0f172a; }
+
+        .is-minimized .track-title { opacity: 0; pointer-events: none; }
+        .is-minimized .track-controls { display: none; }
+        
+        .restore-btn {
+            position: absolute; inset: 0; padding-bottom: 15px; display: none; 
+            align-items: flex-end; justify-content: center; font-size: 30px; font-weight: bold; 
+            color: #0f172a; cursor: pointer; writing-mode: vertical-rl; transform: rotate(180deg);
+            line-height: var(--grid-size); overflow: hidden; white-space: nowrap; font-family: var(--font-ui);
+        }
+        .is-minimized .restore-btn { display: flex; }
+
+        .add-col { 
+            display: flex; flex-direction: column; align-items: center; justify-content: flex-end; 
+            height: 100%; padding-bottom: 5px; width: var(--grid-size); overflow: hidden;
+        }
+        .add-btn { 
+            display: flex; align-items: center; justify-content: center; 
+            cursor: pointer; color: #94a3b8; font-size: 32px; font-family: sans-serif; transition: color 0.2s; 
+            line-height: 1; margin-bottom: 4px;
+        }
+        .add-btn:hover { color: #3b82f6; }
+
+        /* Habit Headers */
+        .habit-header-col { display: flex; flex-direction: column; align-items: center; justify-content: flex-end; height: 100%; width: 100%; position: relative;}
+
+        .habit-header-input {
+            writing-mode: vertical-rl; transform: rotate(180deg); height: calc(var(--grid-size) * 2 - 10px); width: 100%;
+            border: none; background: transparent; font-size: 26px; font-weight: 600; color: #475569; font-family: var(--font-ui);
+            text-align: center; line-height: var(--grid-size); outline: none; cursor: pointer; white-space: nowrap; overflow: hidden; padding: 0; margin: 0;
+        }
+        .habit-header-input:focus { cursor: text; box-shadow: -1px 0 0 dashed #cbd5e1; }
+        
+        .habit-stat { width: 100%; height: var(--grid-size); display: flex; align-items: center; justify-content: center; font-family: var(--font-ui); font-size: 24px; font-weight: bold; color: #64748b;}
+
+        .st-toggle { display: flex; flex-direction: column; align-items: center; gap: 4px; background: transparent; margin-bottom: 2px; width: 100%;}
+        .st-toggle div {
+            font-family: sans-serif; font-size: 13px; font-weight: 700; width: 20px; height: 20px; display: flex; align-items: center; justify-content: center;
+            cursor: pointer; border-radius: 4px; color: #94a3b8; user-select: none; border: 1px solid #e2e8f0; background: #fff; transition: all 0.2s;
+        }
+        .st-toggle div.active { background: #3b82f6; color: white; border-color: #2563eb; }
+
+        .diary-header-col { display: flex; align-items: flex-end; justify-content: center; height: 100%; padding-bottom: 5px; }
+        .diary-title { font-family: var(--font-ui); font-size: 36px; font-weight: bold; color: #0f172a; height: var(--grid-size); line-height: var(--grid-size); width: 100%; text-align: center; margin-bottom: 4px; }
+
+        /* ================= HORIZON ================= */
+        .journal-horizon {
+            display: none; background: rgba(253, 251, 247, 0.98);
+            box-shadow: inset 0 3px 5px rgba(0,0,0,0.02), 0 10px 15px -3px rgba(0,0,0,0.1); border-bottom: 2px solid var(--text-color);
+            position: sticky; top: 132px; z-index: 45; max-height: 55vh; overflow-y: auto;
+        }
+        .journal-horizon.is-expanded { display: grid; }
+        .horizon-col { padding: 0 15px 15px 15px; display: flex; flex-direction: column;}
+        
+        .overdue-section { display: none; margin-bottom: 15px; }
+        .overdue-header { 
+            font-family: var(--font-ui); color: #ef4444; font-size: 28px; font-weight: bold; margin: 0 0 8px 0;
+            height: var(--grid-size); line-height: var(--grid-size); box-shadow: 0 1px 0 dashed #fca5a5;
+        }
+        .overdue-bin { display: flex; flex-direction: column; min-height: 10px;}
+
+        .index-list { list-style: none; padding: 0; margin: 0; font-family: var(--font-ui); font-size: 24px; font-weight: 500;}
+        .index-list li { 
+            display: flex; justify-content: space-between; align-items: center;
+            height: var(--grid-size); line-height: var(--grid-size); box-shadow: 0 1px 0 dotted #e5e5e5;
+        }
+        .index-list li.is-done .index-text { text-decoration: line-through; opacity: 0.5; color: #94a3b8; }
+        .index-text { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 80%; cursor: pointer;}
+        .index-days { font-family: var(--font-ui); font-weight: bold; color: #ef4444; font-size: 24px; padding-right: 8px; } 
+        .type-m-index .index-days { color: #854d0e; }
+
+        /* ================= DAYS & TRACKS ================= */
+        .day-block { transition: background-color 0.2s ease; position: relative; }
+        .day-block.collapsed { height: var(--grid-size); overflow: hidden; } 
+        .day-block.is-weekend { background-color: var(--weekend-bg); box-shadow: 0 0 0 100vmax var(--weekend-bg); clip-path: inset(0 -100vmax); }
+        .day-block.is-today { background-color: var(--today-bg); box-shadow: 0 0 0 100vmax var(--today-bg); clip-path: inset(0 -100vmax); }
+
+        .date-col {
+            padding: 0 15px 0 10px; position: relative; height: var(--grid-size); line-height: var(--grid-size);
+            font-size: 24px; color: #64748b; font-family: var(--font-ui); font-weight: 600; 
+            display: flex; align-items: center; justify-content: flex-start; gap: 8px; white-space: nowrap; 
+        }
+        .month-label { width: 85px; font-size: 24px; font-weight: 700; color: #0f172a; flex-shrink: 0; text-align: left; }
+        .day-label { flex-grow: 1; text-align: left; }
+        .day-toggle { cursor: pointer; font-family: sans-serif; font-size: 14px; color: #cbd5e1; display: none; margin-left: auto; margin-right: 5px; transition: color 0.1s; flex-shrink: 0;}
+        .day-toggle:hover { color: #475569; }
+
+        /* Day Completion Progress Bar */
+        .dprog {
+            position: absolute; bottom: 5px; right: 15px; width: 30px; height: 3px;
+            border-radius: 2px; background: #e2e8f0; overflow: hidden; display: none;
+        }
+        .dprog.show { display: block; }
+        .dprog-fill { height: 100%; border-radius: 2px; background: #22c55e; transition: width 0.35s ease; }
+
+        body:not(.show-achievements) .day-block.is-past { display: none; }
+
+        /* Drag & Drop Visuals */
+        .track { padding: 0 15px; cursor: text; display: flex; flex-direction: column; justify-content: flex-start; min-width: 0; overflow-x: hidden; border-radius: 6px; transition: background 0.2s, box-shadow 0.2s;}
+        .is-minimized.track { cursor: default; }
+        .is-minimized .item { display: none !important; }
+        body.is-dragging .track { box-shadow: inset 0 0 0 2px dashed #cbd5e1; background: rgba(0,0,0,0.015); }
+        .sortable-ghost { opacity: 0.25; background: rgba(59, 130, 246, 0.08); border-radius: 4px; }
+
+        .item { width: 100%; display: flex; align-items: center; height: var(--grid-size); position: relative; cursor: default; white-space: nowrap; overflow: hidden; flex-shrink: 0; padding-right: 35px; padding-left: 8px;}
+        /* Lane Color Accent */
+        .item::before { content: ''; position: absolute; left: 0; top: 11px; bottom: 11px; width: 3px; border-radius: 2px; background: var(--lc); opacity: 0.4; transition: opacity 0.15s; }
+        .item:hover::before { opacity: 0.9; }
+        
+        .item.is-done { opacity: 0.4; }
+        .item.is-done .text-input { color: #64748b; text-decoration: line-through; text-decoration-thickness: 2px;}
+        .item.is-overdue .text-input { color: #ef4444; }
+        .item.is-overdue::before { background: #ef4444; opacity: 0.8; }
+
+        .del-item-btn { 
+            position: absolute; right: 5px; opacity: 0; color: #cbd5e1; font-family: var(--font-ui); 
+            cursor: pointer; font-size: 32px; font-weight: bold; width: 24px; text-align: center; background: inherit; transition: color 0.1s;
+        }
+        .item:hover .del-item-btn { opacity: 1; }
+        @media (hover: none) { .del-item-btn { opacity: 1; } } 
+        .del-item-btn:hover { color: #ef4444; }
+
+        /* Link Parsing Styles */
+        .url-btn {
+            font-family: sans-serif; font-size: 14px; font-weight: bold; text-decoration: none;
+            color: #3b82f6; display: flex; align-items: center; justify-content: center;
+            width: 24px; height: 24px; background: #eff6ff; border-radius: 4px; margin-right: 8px;
+            transition: all 0.1s; cursor: pointer; flex-shrink: 0;
+        }
+        .url-btn:hover { background: #bfdbfe; color: #1d4ed8; }
+
+        /* Habits */
+        .habit-cell { width: 100%; display: flex; align-items: center; justify-content: center; height: var(--grid-size); }
+        .habit-box { 
+            width: 22px; height: 22px; border: 2px solid #cbd5e1; border-radius: 4px; cursor: pointer; 
+            background: #fff; transition: all 0.1s; display: flex; align-items: center; justify-content: center;
+        }
+        .habit-box:active { transform: scale(0.9); }
+        .habit-box.is-checked { background: #1e293b; border-color: #1e293b; }
+        .habit-box.is-checked::after { content: '✓'; font-family: sans-serif; font-size: 16px; color: #fff; font-weight: bold; }
+
+        .diary-cell { padding: 0 10px; display: flex; align-items: flex-start;}
+        .diary-input {
+            width: 100%; height: var(--grid-size); background: transparent; border: none; resize: none; outline: none;
+            font-family: var(--font-ui); font-size: 26px; color: var(--text-color); line-height: var(--grid-size); overflow-y: auto; padding: 0; margin: 0;
+        }
+        .diary-input::-webkit-scrollbar { width: 4px; }
+        .diary-input::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+
+        /* UI Badges */
+        .type-badge {
+            font-family: sans-serif; font-size: 11px; font-weight: bold; width: 22px; height: 22px; display: flex; align-items: center; justify-content: center;
+            border-radius: 4px; margin-right: 10px; cursor: grab; user-select: none; box-shadow: 0 1px 2px rgba(0,0,0,0.1); flex-shrink: 0;
+        }
+        .type-badge:active { cursor: grabbing; transform: scale(0.9); }
+
+        .text-input {
+            border: none; background: transparent; font-family: var(--font-ui); font-size: 28px; font-weight: 500; color: inherit; width: 100%; height: 100%; outline: none; 
+            text-overflow: ellipsis; overflow: hidden; white-space: nowrap; cursor: text; flex-grow: 1; min-width: 0; 
+            padding-right: 8px; /* Prevent clipping of italic/cursive fonts */
+        }
+        .text-input:focus { text-overflow: clip; overflow: visible; }
+        .countdown { font-family: var(--font-ui); font-size: 22px; color: #ef4444; margin-right: 8px; font-weight: bold; padding-right: 6px;}
+
+        .type-task .type-badge { background: #f1f5f9; color: #64748b; border: 1px solid #e2e8f0; }
+        .type-milestone .type-badge { background: #fef08a; color: #854d0e; }
+        .type-milestone .text-input { font-weight: 600; color: #713f12; }
+        .type-outcome .type-badge { background: var(--lc); color: #fff; }
+        .type-outcome .text-input { font-size: 32px; font-weight: 700; color: var(--lc); text-decoration: underline; text-decoration-thickness: 2px; }
+        .type-outcome .countdown { display: inline-block; }
+
+        #top-sentinel { height: 1px; width: 100%; }
+        #scroll-sentinel { height: 20px; width: 100%; }
+
+        /* ================= ONBOARDING MODAL ================= */
+        .onboarding-overlay {
+            position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(15, 23, 42, 0.8);
+            backdrop-filter: blur(5px); z-index: 9999; display: none; align-items: center; justify-content: center;
+        }
+        .onboarding-overlay.is-active { display: flex; }
+        .onboarding-modal {
+            background: #fdfbf7; width: 100%; max-width: 600px; border-radius: 12px; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25);
+            display: flex; flex-direction: column; align-items: flex-start; padding: 40px; border: 2px solid #cbd5e1;
+        }
+        .onboarding-modal h1 { font-family: var(--font-ui); font-size: 56px; color: #0f172a; margin: 0 0 10px 0; line-height: 1; }
+        .onboarding-modal p.subtitle { font-family: sans-serif; font-size: 16px; color: #475569; margin-top: 0; margin-bottom: 30px; font-weight: 500;}
+        .onboarding-modal ul { font-family: sans-serif; font-size: 15px; color: #475569; line-height: 1.6; padding-left: 20px; margin-bottom: 40px; width: 100%; text-align: left;}
+        .onboarding-modal ul li { margin-bottom: 12px; }
+        .onboarding-modal ul li strong { color: #0f172a; font-weight: 600;}
+        
+        /* ================= SEARCH COMMAND PALETTE ================= */
+        .search-overlay {
+            position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(15, 23, 42, 0.6);
+            backdrop-filter: blur(4px); z-index: 1000; display: none; align-items: flex-start; justify-content: center; padding-top: 10vh;
+        }
+        .search-overlay.is-open { display: flex; }
+        .search-modal {
+            background: #fff; width: 100%; max-width: 600px; border-radius: 12px; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25);
+            display: flex; flex-direction: column; overflow: hidden; font-family: sans-serif;
+        }
+        .search-input {
+            width: 100%; border: none; padding: 20px 24px; font-size: 18px; outline: none; border-bottom: 1px solid #e2e8f0; color: #0f172a;
+        }
+        .search-results { max-height: 400px; overflow-y: auto; list-style: none; margin: 0; padding: 0; }
+        .search-item { padding: 12px 24px; border-bottom: 1px solid #f1f5f9; cursor: pointer; display: flex; flex-direction: column; gap: 4px; }
+        .search-item:hover, .search-item.is-active { background: #f8fafc; }
+        .search-item-date { font-size: 12px; color: #3b82f6; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;}
+        .search-item-text { font-size: 20px; color: #1e293b; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-family: var(--font-ui);}
+
+        /* ================= NOTES DRAWER ================= */
+        .notes-overlay {
+            position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(15, 23, 42, 0.4); backdrop-filter: blur(2px);
+            z-index: 1000; display: none; opacity: 0; transition: opacity 0.2s;
+        }
+        .notes-overlay.is-active { display: block; opacity: 1; }
+        .notes-drawer {
+            position: fixed; top: 0; right: -100%; width: 100%; max-width: 450px; height: 100vh;
+            background: #fdfbf7; box-shadow: -5px 0 25px rgba(0,0,0,0.1);
+            z-index: 1001; transition: right 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            display: flex; flex-direction: column; border-left: 2px solid #cbd5e1;
+        }
+        .notes-drawer.is-open { right: 0; }
+        .notes-header {
+            padding: 15px 20px; border-bottom: 1px solid #e2e8f0; display: flex;
+            justify-content: space-between; align-items: center; background: #fff; box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+        }
+        .notes-tabs-container {
+            display: flex; border-bottom: 1px solid #e2e8f0; background: #f1f5f9;
+            overflow-x: auto; flex-shrink: 0; padding-right: 15px; align-items: flex-end;
+        }
+        .notes-tabs-container::-webkit-scrollbar { height: 4px; }
+        .notes-tabs-container::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        .notes-tabs { display: flex; flex-grow: 1; }
+        .note-tab {
+            padding: 10px 15px; cursor: pointer; border-right: 1px solid #e2e8f0;
+            white-space: nowrap; font-family: sans-serif; font-size: 14px; max-width: 150px; overflow: hidden; text-overflow: ellipsis;
+            color: #64748b; border-bottom: 2px solid transparent; display: flex; align-items: center; gap: 8px; transition: all 0.1s;
+        }
+        .note-tab.active { background: #fdfbf7; border-bottom-color: #3b82f6; color: #0f172a; font-weight: bold; border-top: 2px solid transparent;}
+        .note-tab .del-note-btn { color: #ef4444; font-size: 16px; font-weight: bold; display: none; user-select: none; padding-left: 5px; }
+        .note-tab:hover .del-note-btn { display: inline-block; }
+        .note-tab.active .del-note-btn { display: inline-block; }
+        
+        .add-note-tab { 
+            padding: 8px 15px; cursor: pointer; color: #3b82f6; font-weight: bold; font-size: 20px;
+            display: flex; align-items: center; justify-content: center; user-select: none;
+        }
+        .add-note-tab:hover { background: #e2e8f0; }
+
+        .note-editor { flex: 1; display: flex; flex-direction: column; padding: 20px 25px; gap: 5px; overflow-y: auto; background-image: var(--bg-pattern); background-size: var(--grid-size) var(--grid-size); background-position: -1px -1px; }
+        
+        .note-editor-title {
+            font-family: var(--font-ui); font-size: 36px; font-weight: bold; color: #0f172a;
+            border: none; background: transparent; outline: none; padding-bottom: 5px; flex-shrink: 0;
+        }
+        .note-toolbar { display: flex; gap: 8px; padding: 8px 0 12px 0; border-bottom: 2px dashed #cbd5e1; margin-bottom: 10px; flex-shrink: 0; }
+        
+        .fmt-btn { 
+            background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 4px; padding: 4px 10px; 
+            cursor: pointer; font-family: sans-serif; font-size: 14px; color: #475569; font-weight: bold;
+            transition: all 0.1s;
+        }
+        .fmt-btn:hover { background: #e2e8f0; color: #0f172a; }
+        .fmt-btn:active { transform: scale(0.95); }
+        .fmt-btn.is-active { background: #cbd5e1; color: #0f172a; box-shadow: inset 0 2px 4px rgba(0,0,0,0.15); border-color: #94a3b8; }
+
+        .note-editor-body {
+            flex: 1; border: none; background: transparent; outline: none; padding-top: 5px;
+            font-family: var(--font-ui); font-size: 26px; color: #1e293b; line-height: var(--grid-size); overflow-y: auto;
+            word-wrap: break-word; overflow-wrap: break-word;
+        }
+        .note-editor-body::-webkit-scrollbar { width: 6px; }
+        .note-editor-body::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        .note-editor-body[contenteditable]:empty::before {
+            content: attr(placeholder); color: #94a3b8; pointer-events: none; display: block;
+        }
+        .note-editor-body ul { margin: 0 0 0 25px; padding: 0; }
+        .note-editor-body li { margin-bottom: 5px; }
+        
+        /* Note Editor Link Styling */
+        .note-editor-body a { color: #3b82f6; text-decoration: underline; cursor: pointer; transition: color 0.1s;}
+        .note-editor-body a:hover { color: #1d4ed8; }
+
+        #note-empty-state { padding: 40px 20px; color: #64748b; font-family: sans-serif; text-align: center; font-size: 15px; }
+
+        /* ================= UNDO TOAST ================= */
+        #undo-toast {
+            position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%) translateY(100px);
+            background: #1e293b; color: #fdfbf7; font-family: sans-serif; font-size: 14px;
+            padding: 10px 20px; border-radius: 8px; display: flex; align-items: center; gap: 15px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.2); transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+            z-index: 5000; white-space: nowrap;
+        }
+        #undo-toast.is-active { transform: translateX(-50%) translateY(0); }
+        #undo-toast button {
+            background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.2); color: #fff;
+            border-radius: 4px; padding: 4px 10px; cursor: pointer; font-size: 13px; font-weight: bold;
+            transition: background 0.1s;
+        }
+        #undo-toast button:hover { background: rgba(255,255,255,0.25); }
+
+    </style>
+    <style id="dynamic-grid-style"></style>
+</head>
+<body class="theme-dotted">
+
+    <input type="file" id="import-upload" accept=".json" style="display: none;">
+
+    <div class="onboarding-overlay" id="onboarding-overlay">
+        <div class="onboarding-modal">
+            <h1>Time, Untangled.</h1>
+            <p class="subtitle">Welcome to Swimlane—your continuous, infinite-canvas journal.</p>
+            <ul>
+                <li><strong>The Infinite Canvas:</strong> Traditional journals trap you in pages. Here, time is fluid. Scroll up into the past, or down into the future. The paper never ends.</li>
+                <li><strong>The Horizon:</strong> Never lose track of long-term goals. Open the Horizon to see upcoming milestones and effortlessly catch up on overdue tasks.</li>
+                <li><strong>Frictionless Flow:</strong> Drag and drop to reschedule. Active drop zones guide your moves.</li>
+                <li><strong>Command Palette:</strong> Press <strong>Ctrl + K</strong> (or Cmd + K) to instantly search your entire timeline.</li>
+                <li><strong>Undo:</strong> Mistakes happen. Press <strong>Ctrl + Z</strong> to instantly undo destructive actions.</li>
+            </ul>
+            <div style="width: 100%; display: flex; justify-content: center;">
+                <div class="ui-btn action-btn" role="button" tabindex="0" data-action="closeOnboarding" style="width: auto; padding: 8px 30px; font-size: 24px;">Start Journaling</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="journal-container">
+        <div class="journal-header grid-row" id="journal-header"></div>
+        <div class="journal-horizon grid-row" id="journal-horizon"></div>
+        <div id="top-sentinel"></div>
+        <div id="journal-body"></div>
+        <div id="scroll-sentinel"></div>
+    </div>
+
+    <div class="notes-overlay action-btn" id="notes-overlay" data-action="closeNotes" role="button" tabindex="0"></div>
+    <div class="notes-drawer" id="notes-drawer">
+        <div class="notes-header">
+            <h2 id="notes-drawer-lane-title" style="margin:0; font-family:var(--font-ui); font-size:32px; color:#0f172a;">Notes</h2>
+            <div class="ctrl-btn action-btn" role="button" tabindex="0" data-action="closeNotes" style="font-size:24px;">×</div>
+        </div>
+        <div class="notes-tabs-container">
+            <div class="notes-tabs" id="notes-tabs"></div>
+            <div class="add-note-tab action-btn" role="button" tabindex="0" data-action="addNote" title="New Note">+</div>
+        </div>
+        <div class="note-editor" id="note-editor" style="display:none;">
+            <input type="text" id="note-title-input" class="note-editor-title action-input" data-action="editNoteTitle" placeholder="Title" spellcheck="false" autocomplete="off">
+            <div class="note-toolbar">
+                <button class="fmt-btn" id="btn-bold" onmousedown="event.preventDefault(); document.execCommand('bold',false,null); document.getElementById('note-text-input').dispatchEvent(new Event('input', {bubbles:true}));" title="Bold"><b>B</b></button>
+                <button class="fmt-btn" id="btn-italic" onmousedown="event.preventDefault(); document.execCommand('italic',false,null); document.getElementById('note-text-input').dispatchEvent(new Event('input', {bubbles:true}));" title="Italic"><i>I</i></button>
+                <button class="fmt-btn" id="btn-underline" onmousedown="event.preventDefault(); document.execCommand('underline',false,null); document.getElementById('note-text-input').dispatchEvent(new Event('input', {bubbles:true}));" title="Underline"><u>U</u></button>
+                <button class="fmt-btn" id="btn-list" onmousedown="event.preventDefault(); document.execCommand('insertUnorderedList',false,null); document.getElementById('note-text-input').dispatchEvent(new Event('input', {bubbles:true}));" title="Bullet List">• List</button>
+                <div style="width: 1px; background: #cbd5e1; margin: 0 4px;"></div>
+                <button class="fmt-btn" id="btn-link" title="Insert Link">🔗 Link</button>
+            </div>
+            <div id="note-text-input" class="note-editor-body action-input" data-action="editNoteBody" contenteditable="true" spellcheck="false" placeholder="Start writing..."></div>
+        </div>
+        <div id="note-empty-state">
+            No notes selected. Click '+' to create a new note for this lane.
+        </div>
+    </div>
+
+    <div class="search-overlay" id="search-overlay">
+        <div class="search-modal">
+            <input type="text" class="search-input" id="search-input" placeholder="Search tasks and diary... (Ctrl+K)" autocomplete="off" spellcheck="false">
+            <ul class="search-results" id="search-results"></ul>
+        </div>
+    </div>
+
+    <div id="undo-toast">
+        <span id="undo-msg">Undone</span>
+        <button id="undo-btn">Undo (Ctrl+Z)</button>
+    </div>
+
+<script>
+    /*
+     * ═══════════════════════════════════════════════════════════════════════
+     *  SWIMLANE JOURNAL — V1
+     *
+     *  A single-page web app delivered as one self-contained HTML file.
+     *  Open it in any modern browser — no build step, no npm, no bundler.
+     *  All JavaScript lives inside one IIFE (Immediately-Invoked Function
+     *  Expression) called App so nothing leaks into the browser's globals.
+     *
+     *  ── TECH STACK ────────────────────────────────────────────────────────
+     *
+     *  FRONTEND (everything you see runs in the browser)
+     *  • Vanilla HTML5 / CSS3 / JavaScript (ES2020+)
+     *    — No React, Vue, Angular or any JS framework.
+     *    — CSS Grid powers the multi-column calendar layout.
+     *    — CSS Custom Properties (variables) handle theming and per-lane colours.
+     *  • Google Fonts — "Caveat" (the handwritten journal font)
+     *    Loaded from: fonts.googleapis.com
+     *    Weight variants: 400 (regular), 600 (semi-bold), 700 (bold)
+     *  • SortableJS (latest) — drag-and-drop library for reordering tasks
+     *    Loaded from: cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js
+     *    Used for: dragging tasks between days and between lanes
+     *  • Browser APIs used:
+     *    — IntersectionObserver  : detects when the user scrolls near the
+     *                              top/bottom edge so VirtualScroll can load more days
+     *    — crypto.randomUUID()   : generates collision-proof unique IDs for items
+     *    — IndexedDB             : legacy storage (used only for data migration)
+     *    — localStorage          : last-resort fallback if IndexedDB is unavailable
+     *    — Fetch API             : sends/receives data from the Python backend
+     *
+     *  BACKEND (V1 only — the latest version removes this dependency)
+     *  • Python web server expected at the SAME host as this HTML file
+     *    — Most likely Flask or FastAPI (we only ship the frontend here)
+     *    — Two endpoints:
+     *        GET  /api/state  → returns the full journal as a JSON object
+     *        POST /api/state  → accepts and saves the full journal as JSON
+     *    — If the server is unreachable, the app falls back to local storage
+     *      so the user never loses unsaved work
+     *
+     *  DATA FORMAT
+     *  • All data is stored as a single JSON blob (the `state` object below).
+     *    On every save the entire blob is POSTed to the server — simple but
+     *    robust for a single-user journal with modest data sizes.
+     *
+     *  ── HIGH-LEVEL APP FLOW ───────────────────────────────────────────────
+     *
+     *  1. bootstrap()       — entry point; loads data, wires up all modules
+     *  2. Store             — talks to the Python server; reads/writes JSON
+     *  3. State             — the single source of truth (all journal data)
+     *  4. Actions           — the ONLY place State is mutated (one-way flow)
+     *  5. EventBus          — Actions fire events; Render listens and reacts
+     *  6. Render            — turns State into visible HTML on screen
+     *  7. VirtualScroll     — only keeps ~120 day-rows in the DOM at once
+     *  8. DragDrop          — wires SortableJS onto each lane track
+     *  9. Search            — full-text Ctrl+K command palette
+     * 10. Events            — global click/keydown listener → calls Actions
+     * ═══════════════════════════════════════════════════════════════════════
+     */
+    const App = (function() {
+        
+        // ─── CONFIG ──────────────────────────────────────────────────────────────
+        // App-wide constants. Nothing in here changes while the app is running.
+        const Config = {
+            // The badge types a task can cycle through. Each has a short letter label
+            // shown on the coloured square in the UI. Pressing the badge rotates T→M→O→T.
+            // ⚠️  BUG (V1): 'type-event' (E) is missing here — it exists in the latest
+            //     version but was never added to V1. Fix: add { id:'type-event', label:'E' }.
+            itemTypes: [{ id: 'type-task', label: 'T' }, { id: 'type-milestone', label: 'M' }, { id: 'type-outcome', label: 'O' }],
+
+            // Eight accent colours that new lanes get assigned in order.
+            // Users can also manually rotate a lane's colour by clicking its colour dot.
+            PAL: ['#4F8EF7', '#8B5CF6', '#10B981', '#F59E0B', '#EF4444', '#06B6D4', '#EC4899', '#84CC16'],
+
+            defaultTheme: 'dotted', // Starting paper style: 'dotted' or 'lined'
+
+            // The name used to open the browser's IndexedDB database.
+            // The version suffix (V10) is bumped whenever the data shape changes,
+            // which tells the browser to run a schema upgrade and avoid reading stale data.
+            dbName: 'SwimlaneDB_V10',
+
+            // Key used to read/write backup data in localStorage (the simpler storage API).
+            // Only used as a last resort if IndexedDB isn't available, or for legacy migration.
+            fallbackKey: 'SwimlaneFallback_V10',
+
+            // Cap on how many day-rows are kept in the DOM at once.
+            // Once this is exceeded, rows at the opposite end are quietly removed.
+            // Prevents the page from slowing down after hours of scrolling.
+            maxRenderedDays: 120
+        };
+
+        const Utils = {
+            uuid: () => { try { return crypto.randomUUID(); } catch { return 'id_' + Date.now().toString(36) + Math.random().toString(36).substring(2, 15); } },
+            parseDate: (s) => new Date(s + 'T00:00:00'),
+            toLocalISO: (d) => { const y = d.getFullYear(); const m = String(d.getMonth() + 1).padStart(2, '0'); const day = String(d.getDate()).padStart(2, '0'); return `${y}-${m}-${day}`; },
+            get today() { const d = new Date(); d.setHours(0,0,0,0); return d; },
+            get todayStr() { return Utils.toLocalISO(this.today); },
+            getDiffDays: (dateStr) => { return Math.round((Utils.parseDate(dateStr) - Utils.today) / 86400000); },
+            escape: (str) => String(str || '').replace(/[&<>"']/g, match => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[match])
+        };
+
+        let state = {
+            version: 10,
+            lanes: [{ id: 'l_1', title: 'Company', minimized: false, color: '#4F8EF7' }, { id: 'l_2', title: 'Home', minimized: false, color: '#8B5CF6' }, { id: 'l_3', title: 'Admin', minimized: false, color: '#10B981' }],
+            habits: [ { id: 'h_1', title: 'Workout' }, { id: 'h_2', title: 'Read' }, { id: 'h_3', title: 'Diet' }, { id: 'h_4', title: 'Sleep' } ],
+            items: [],
+            notes: [],
+            habitChecks: {}, 
+            diary: {},       
+            settings: { theme: Config.defaultTheme, horizonMode: 'all', habitMode: 'streak', showAchievements: false, showHorizon: false }
+        };
+
+        let uiState = { isNotesOpen: false, activeLaneNotes: null, activeNoteId: null };
+        let currentUiToday = Utils.todayStr;
+
+        const dayMap = new Map();
+        let renderStartDate = null;
+        let renderEndDate = null;
+        let isVirtualizing = false;
+
+        const DOM = {
+            get header() { return document.getElementById('journal-header'); },
+            get horizon() { return document.getElementById('journal-horizon'); },
+            get body() { return document.getElementById('journal-body'); },
+            get topSentinel() { return document.getElementById('top-sentinel'); },
+            get bottomSentinel() { return document.getElementById('scroll-sentinel'); },
+            get searchOverlay() { return document.getElementById('search-overlay'); },
+            get searchInput() { return document.getElementById('search-input'); },
+            get searchResults() { return document.getElementById('search-results'); },
+            get onboarding() { return document.getElementById('onboarding-overlay'); },
+            get importUpload() { return document.getElementById('import-upload'); },
+            get notesOverlay() { return document.getElementById('notes-overlay'); },
+            get notesDrawer() { return document.getElementById('notes-drawer'); },
+            get notesLaneTitle() { return document.getElementById('notes-drawer-lane-title'); },
+            get notesTabs() { return document.getElementById('notes-tabs'); },
+            get noteEditor() { return document.getElementById('note-editor'); },
+            get noteEmptyState() { return document.getElementById('note-empty-state'); },
+            get noteTitleInput() { return document.getElementById('note-title-input'); },
+            get noteBodyInput() { return document.getElementById('note-text-input'); },
+            get toast() { return document.getElementById('undo-toast'); }
+        };
+
+        const EventBus = {
+            listeners: {},
+            on(event, cb) { if(!this.listeners[event]) this.listeners[event] = []; this.listeners[event].push(cb); },
+            off(event, cb) { if(this.listeners[event]) this.listeners[event] = this.listeners[event].filter(l => l !== cb); },
+            clear() { this.listeners = {}; },
+            emit(event, data) { if(this.listeners[event]) this.listeners[event].forEach(cb => cb(data)); }
+        };
+
+        let undoTimer;
+        const Undo = {
+            stack: [], max: 20,
+            snap(label = 'Action') {
+                this.stack.push({ label, stateData: JSON.parse(JSON.stringify(state)) });
+                if(this.stack.length > this.max) this.stack.shift();
+            },
+            perform() {
+                if(!this.stack.length) return;
+                const snap = this.stack.pop();
+                state = snap.stateData;
+                Store.save(); applySettings(); Render.hardRebuild();
+                this.showToast('Undid: ' + snap.label);
+            },
+            showToast(msg) {
+                document.getElementById('undo-msg').innerText = msg;
+                DOM.toast.classList.add('is-active');
+                clearTimeout(undoTimer); undoTimer = setTimeout(() => DOM.toast.classList.remove('is-active'), 3500);
+            }
+        };
+
+        const Store = {
+            useIDB: false, db: null,
+            init() {
+                // Keep IndexedDB init to check for legacy client data to migrate
+                return new Promise((resolve) => {
+                    try {
+                        if (!window.indexedDB) return resolve();
+                        const req = indexedDB.open(Config.dbName, 1);
+                        req.onupgradeneeded = e => { e.target.result.createObjectStore('state'); };
+                        req.onsuccess = e => { this.db = e.target.result; this.useIDB = true; resolve(); };
+                        req.onerror = e => { resolve(); };
+                    } catch (e) { resolve(); }
+                });
+            },
+            async load() {
+                // 1. Check for legacy client-side data to migrate
+                let legacyData = null;
+                try {
+                    legacyData = await new Promise(resolve => {
+                        if (this.useIDB && this.db) {
+                            const tx = this.db.transaction('state', 'readonly');
+                            const req = tx.objectStore('state').get('appData');
+                            req.onsuccess = () => resolve(req.result);
+                            req.onerror = () => resolve(this.loadFallbackLegacy());
+                        } else {
+                            resolve(this.loadFallbackLegacy());
+                        }
+                    });
+                } catch(e) {
+                    console.warn("Legacy load failed:", e);
+                }
+
+                // 2. Fetch active state from the Python backend server
+                try {
+                    const response = await fetch('/api/state');
+                    if (response.ok) {
+                        const serverData = await response.json();
+                        if (serverData && Object.keys(serverData).length > 0) {
+                            // Backend database is initialized; load server state
+                            this.hydrate(serverData);
+                            console.log("Journal loaded successfully from backend database.");
+                        } else if (legacyData && Object.keys(legacyData).length > 0) {
+                            // Backend database is empty, but legacy local data exists: bootstrap backend
+                            console.log("Bootstrapping backend database with legacy local data...");
+                            this.hydrate(legacyData);
+                            await this.saveToServer(legacyData);
+                            
+                            // Clean up legacy local storage after successful bootstrap
+                            this.clearLegacy();
+                        } else {
+                            console.log("No data found on backend or locally. Starting fresh.");
+                        }
+                    } else {
+                        console.error("Backend returned error status:", response.status);
+                        if (legacyData) this.hydrate(legacyData);
+                    }
+                } catch (e) {
+                    console.error("Failed to connect to backend server. Falling back to local data.", e);
+                    if (legacyData) this.hydrate(legacyData);
+                }
+            },
+            loadFallbackLegacy() {
+                try {
+                    const raw = localStorage.getItem(Config.fallbackKey);
+                    return raw ? JSON.parse(raw) : null;
+                } catch(e) {
+                    return null;
+                }
+            },
+            clearLegacy() {
+                try {
+                    localStorage.removeItem(Config.fallbackKey);
+                    if (this.useIDB && this.db) {
+                        const tx = this.db.transaction('state', 'readwrite');
+                        tx.objectStore('state').delete('appData');
+                    }
+                } catch(e) {
+                    console.warn("Could not clear legacy local storage:", e);
+                }
+            },
+            hydrate(data) {
+                if(!data) return;
+                state.lanes = data.lanes || state.lanes;
+                state.lanes.forEach((l, i) => { if(!l.color) l.color = Config.PAL[i % Config.PAL.length]; });
+                state.diary = data.diary || {};
+                state.notes = data.notes || []; 
+                state.settings = { ...state.settings, ...(data.settings || {}) };
+                state.items = (data.items || []).filter(i => i.id && i.dateStr && i.laneId && i.type);
+                
+                if (data.habits && typeof data.habits[0] === 'string') {
+                    state.habits = data.habits.map((h, i) => ({ id: 'h_' + i, title: h }));
+                    Object.keys(data.habitChecks || {}).forEach(date => {
+                        const newChecks = {}; Object.keys(data.habitChecks[date]).forEach(oldIdx => { newChecks['h_' + oldIdx] = data.habitChecks[date][oldIdx]; });
+                        state.habitChecks[date] = newChecks;
+                    });
+                } else {
+                    state.habits = data.habits || state.habits;
+                    state.habitChecks = data.checks || data.habitChecks || {};
+                }
+            },
+            async save() {
+                try {
+                    await this.saveToServer(state);
+                } catch (e) {
+                    console.error("Autosave to backend failed:", e);
+                }
+            },
+            async saveToServer(stateData) {
+                const response = await fetch('/api/state', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(stateData)
+                });
+                if (!response.ok) {
+                    throw new Error(`Server returned response code: ${response.status}`);
+                }
+            }
+        };
+
+        let saveTimer;
+        const debouncedSave = () => { clearTimeout(saveTimer); saveTimer = setTimeout(() => Store.save(), 300); };
+
+        function applySettings() {
+            document.body.className = `theme-${state.settings.theme}`;
+            document.body.classList.toggle('show-achievements', state.settings.showAchievements);
+        }
+
+        const Actions = {
+            mutate(fn, ev = 'stateChanged', payload = null) { fn(); debouncedSave(); EventBus.emit(ev, payload); },
+            toggleSetting(key, val) { this.mutate(() => { state.settings[key] = val; }, 'settingsChanged'); },
+            toggleAchievement() { this.mutate(() => { state.settings.showAchievements = !state.settings.showAchievements; applySettings(); }, 'structureChanged'); },
+            toggleHorizon() { this.mutate(() => { state.settings.showHorizon = !state.settings.showHorizon; }, 'horizonToggled'); },
+
+            addLane() { 
+                Undo.snap('Add Lane');
+                this.mutate(() => { const i = state.lanes.length; state.lanes.push({ id: 'l_' + Utils.uuid().substring(0,6), title: 'New', minimized: false, color: Config.PAL[i % Config.PAL.length] }); }, 'structureChanged'); 
+            },
+            delLane(id) { 
+                if(state.lanes.length > 1 && confirm("Delete lane and all tasks?")) {
+                    Undo.snap('Delete Lane');
+                    this.mutate(() => { 
+                        state.lanes = state.lanes.filter(l => l.id !== id); 
+                        state.items = state.items.filter(i => i.laneId !== id); 
+                        state.notes = state.notes.filter(n => n.laneId !== id);
+                        if (uiState.activeLaneNotes === id) this.closeNotes();
+                    }, 'structureChanged'); 
+                }
+            },
+            minLane(id) { this.mutate(() => { const l = state.lanes.find(x => x.id === id); if(l) l.minimized = !l.minimized; }, 'structureChanged'); },
+            updateLaneTitle(id, val) { this.mutate(() => { const l = state.lanes.find(x => x.id === id); if(l) l.title = val; }, 'silentSave'); }, 
+            cycleLaneColor(id) {
+                this.mutate(() => {
+                    const l = state.lanes.find(x => x.id === id); if (!l) return;
+                    l.color = Config.PAL[(Config.PAL.indexOf(l.color) + 1) % Config.PAL.length];
+                }, 'structureChanged');
+            },
+            
+            addHabit() { Undo.snap('Add Habit'); this.mutate(() => { state.habits.push({ id: 'h_' + Utils.uuid().substring(0,6), title: 'New' }); }, 'structureChanged'); },
+            delHabit(id) { 
+                if(confirm("Delete Habit?")) {
+                    Undo.snap('Delete Habit');
+                    this.mutate(() => { 
+                        state.habits = state.habits.filter(h => h.id !== id); 
+                        Object.keys(state.habitChecks).forEach(d => { if(state.habitChecks[d]) delete state.habitChecks[d][id]; });
+                    }, 'structureChanged'); 
+                }
+            },
+            updateHabitTitle(id, val) { this.mutate(() => { const h = state.habits.find(x => x.id === id); if(h) h.title = val || 'Habit'; }, 'silentSave'); },
+            toggleHabit(d, id, isChecked) { this.mutate(() => { if(!state.habitChecks[d]) state.habitChecks[d]={}; state.habitChecks[d][id] = isChecked; }, 'habitsChanged'); },
+            
+            updateDiary(d, val) { this.mutate(() => { if(val.trim()==='') delete state.diary[d]; else state.diary[d] = val; }, 'silentSave'); },
+
+            addItem(dateStr, laneId) {
+                const id = Utils.uuid();
+                if(document.activeElement) document.activeElement.blur(); 
+                this.mutate(() => { state.items.push({ id, dateStr, laneId, type: 'type-task', text: '', isDone: false }); }, 'itemsChanged', { dateStr });
+                setTimeout(() => { const i = document.querySelector(`.item[data-id="${id}"] .text-input`); if(i) i.focus(); }, 10);
+            },
+            updateTaskText(id, text) { 
+                const item = state.items.find(x => x.id === id); 
+                if(item) {
+                    this.mutate(() => { item.text = text; }, (item.type === 'type-outcome' || item.type === 'type-milestone') ? 'horizonChanged' : 'silentSave'); 
+                }
+            },
+            toggleDone(id) { 
+                Undo.snap('Toggle Done');
+                this.mutate(() => { const i = state.items.find(x => x.id === id); if(i) i.isDone = !i.isDone; }, 'itemToggled', { id }); 
+            },
+            cycleType(id) { 
+                const item = state.items.find(x => x.id === id);
+                if (item) {
+                    Undo.snap('Cycle Type');
+                    this.mutate(() => { 
+                        let idx = Config.itemTypes.findIndex(t => t.id === item.type); 
+                        item.type = Config.itemTypes[(idx + 1) % Config.itemTypes.length].id; 
+                    }, 'itemsChanged', { dateStr: item.dateStr }); 
+                }
+            },
+            deleteItem(id) { 
+                const item = state.items.find(x => x.id === id);
+                if (item) { Undo.snap('Delete Task'); this.mutate(() => { state.items = state.items.filter(x => x.id !== id); }, 'itemsChanged', { dateStr: item.dateStr }); }
+            },
+            reorderTrack(id, newDate, newLane, domIds) {
+                const item = state.items.find(x => x.id === id);
+                if (!item) return;
+                const oldDateStr = item.dateStr;
+                Undo.snap('Move Task');
+                this.mutate(() => {
+                    item.dateStr = newDate; item.laneId = newLane;
+                    const trackItems = []; const otherItems = [];
+                    state.items.forEach(i => { if (domIds.includes(i.id)) trackItems.push(i); else otherItems.push(i); });
+                    trackItems.sort((a, b) => domIds.indexOf(a.id) - domIds.indexOf(b.id));
+                    state.items = [...otherItems, ...trackItems];
+                }, 'itemsMoved', { oldDateStr, newDateStr: newDate });
+            },
+            sweepEmpty(id) { const i = state.items.find(x => x.id === id); if(i && i.text.trim() === '') this.deleteItem(id); },
+
+            softRollover() {
+                const sysToday = Utils.todayStr;
+                document.querySelectorAll('.day-block').forEach(block => {
+                    const d = block.dataset.date;
+                    block.classList.toggle('is-today', d === sysToday);
+                    block.classList.toggle('is-past', d < sysToday);
+                    block.classList.toggle('is-future', d > sysToday);
+                });
+                EventBus.emit('horizonChanged'); EventBus.emit('itemsChanged'); 
+            },
+
+            openNotes(laneId) {
+                uiState.isNotesOpen = true; uiState.activeLaneNotes = laneId;
+                const laneNotes = state.notes.filter(n => n.laneId === laneId);
+                if (laneNotes.length > 0) { if (!uiState.activeNoteId || !laneNotes.find(n => n.id === uiState.activeNoteId)) uiState.activeNoteId = laneNotes[0].id; } 
+                else { uiState.activeNoteId = null; }
+                Render.notesDrawerUI(); DOM.notesOverlay.classList.add('is-active'); DOM.notesDrawer.classList.add('is-open');
+            },
+            closeNotes() { uiState.isNotesOpen = false; DOM.notesOverlay.classList.remove('is-active'); DOM.notesDrawer.classList.remove('is-open'); },
+            addNote() {
+                if (!uiState.activeLaneNotes) return;
+                Undo.snap('Add Note');
+                const newNote = { id: Utils.uuid(), laneId: uiState.activeLaneNotes, title: 'New Note', content: '' };
+                this.mutate(() => { state.notes.push(newNote); uiState.activeNoteId = newNote.id; }, 'notesChanged');
+            },
+            switchNote(id) { if (uiState.activeNoteId !== id) { uiState.activeNoteId = id; Render.notesDrawerUI(); } },
+            deleteNote(id) {
+                if(confirm("Delete this note?")) {
+                    Undo.snap('Delete Note');
+                    this.mutate(() => {
+                        state.notes = state.notes.filter(n => n.id !== id);
+                        if (uiState.activeNoteId === id) { const remaining = state.notes.filter(n => n.laneId === uiState.activeLaneNotes); uiState.activeNoteId = remaining.length > 0 ? remaining[0].id : null; }
+                    }, 'notesChanged');
+                }
+            },
+            updateNoteTitle(id, title) { this.mutate(() => { const n = state.notes.find(x => x.id === id); if(n) n.title = title || 'Untitled'; }, 'notesTabsChanged'); },
+            updateNoteBody(id, content) { this.mutate(() => { const n = state.notes.find(x => x.id === id); if(n) n.content = content; }, 'silentSave'); },
+
+            exportData() {
+                const b = new Blob([JSON.stringify(state, null, 2)], {type: "application/json"});
+                const url = URL.createObjectURL(b); const a = document.createElement('a');
+                a.href = url; a.download = `swimlane_backup_${Utils.todayStr}.json`;
+                a.click(); URL.revokeObjectURL(url);
+            },
+            importData() { DOM.importUpload.click(); }
+        };
+
+        const Render = {
+            init() {
+                EventBus.clear();
+                this.gridCSS(); this.header(); this.horizon();
+                
+                BusWrap('structureChanged', () => this.hardRebuild());
+                BusWrap('settingsChanged', () => { applySettings(); this.header(); this.horizonData(); });
+                BusWrap('horizonToggled', () => {
+                    const btn = document.querySelector('[data-action="toggleHorizon"]');
+                    if(btn) btn.classList.toggle('active', state.settings.showHorizon);
+                    DOM.horizon.classList.toggle('is-expanded', state.settings.showHorizon);
+                    if(state.settings.showHorizon) { VirtualScroll.seekToDate(Utils.todayStr); this.horizonData(); }
+                    this.syncHorizonHeight();
+                    if (window.scrollY > DOM.header.offsetHeight) window.scrollBy(0, state.settings.showHorizon ? DOM.horizon.offsetHeight : -DOM.horizon.scrollHeight);
+                });
+
+                BusWrap('itemsChanged', (p) => { 
+                    if(p && p.dateStr) this.trackContent(p.dateStr); else dayMap.forEach((_, dStr) => this.trackContent(dStr)); 
+                    this.horizonData(); this.updateDayToggles(); this.updateProgress();
+                });
+                BusWrap('itemsMoved', (p) => {
+                    if(p) { this.trackContent(p.oldDateStr); if(p.oldDateStr !== p.newDateStr) this.trackContent(p.newDateStr); }
+                    this.horizonData(); this.updateDayToggles(); this.updateProgress();
+                });
+                BusWrap('itemToggled', (p) => {
+                    if(p && p.id) {
+                        const item = state.items.find(i => i.id === p.id);
+                        if(item) document.querySelectorAll(`.item[data-id="${p.id}"]`).forEach(el => el.classList.toggle('is-done', item.isDone));
+                    }
+                    this.horizonData(); this.updateProgress();
+                });
+                BusWrap('horizonChanged', () => this.horizonData());
+                BusWrap('habitsChanged', () => this.habitStats());
+                
+                BusWrap('notesChanged', () => { if(uiState.isNotesOpen) this.notesDrawerUI(); });
+                BusWrap('notesTabsChanged', () => { if(uiState.isNotesOpen) this.notesDrawerTabsOnly(); });
+            },
+
+            hardRebuild() {
+                const activeId = document.activeElement?.dataset?.id;
+                DOM.body.innerHTML = ''; dayMap.clear();
+                this.gridCSS(); this.header(activeId ? `[data-id="${activeId}"]` : null); this.horizon();
+                VirtualScroll.seekToDate(Utils.todayStr);
+            },
+
+            gridCSS() {
+                const laneWidth = state.lanes.length > 3 ? 'minmax(220px, 1fr)' : 'minmax(140px, 1fr)';
+                const laneStr = state.lanes.map(sl => sl.minimized ? 'var(--grid-size)' : laneWidth).join(' ');
+                const habitStr = `repeat(${state.habits.length}, var(--grid-size))`;
+                const gridTemplate = `var(--left-margin) ${laneStr} var(--grid-size) ${habitStr} var(--grid-size) minmax(200px, 1.5fr)`;
+                
+                let css = `.grid-row { grid-template-columns: ${gridTemplate}; } #horizon-span-filler { grid-column: span ${state.habits.length + 2}; }`;
+                state.lanes.forEach((l, i) => { css += `.sl-${l.id} { --lc: ${l.color || Config.PAL[i % Config.PAL.length]}; }`; });
+
+                let styleTag = document.getElementById('dynamic-grid-style');
+                if(!styleTag) { styleTag = document.createElement('style'); styleTag.id = 'dynamic-grid-style'; document.head.appendChild(styleTag); }
+                styleTag.innerHTML = css;
+            },
+
+            header(activeFocusSelector = null) {
+                let html = `
+                    <div class="control-panel">
+                        <div class="settings-wrapper">
+                            <div class="ui-btn action-btn" role="button" tabindex="0" data-action="toggleSettings">⚙ Options</div>
+                            <div class="settings-tray" id="settings-tray">
+                                <div class="tray-section"><span class="tray-label">Paper Style</span>
+                                    <div class="tray-toggle-group">
+                                        <div class="tray-toggle-btn action-btn ${state.settings.theme==='dotted'?'active':''}" role="button" tabindex="0" data-action="setTheme" data-val="dotted">Dotted</div>
+                                        <div class="tray-toggle-btn action-btn ${state.settings.theme==='lined'?'active':''}" role="button" tabindex="0" data-action="setTheme" data-val="lined">Lined</div>
+                                    </div>
+                                </div>
+                                <div class="tray-section"><span class="tray-label">Horizon Filter</span>
+                                    <div class="tray-toggle-group">
+                                        <div class="tray-toggle-btn action-btn ${state.settings.horizonMode==='all'?'active':''}" role="button" tabindex="0" data-action="setHzMode" data-val="all">All</div>
+                                        <div class="tray-toggle-btn action-btn ${state.settings.horizonMode==='scroll'?'active':''}" role="button" tabindex="0" data-action="setHzMode" data-val="scroll">Scrolled</div>
+                                    </div>
+                                </div>
+                                <div class="tray-section"><span class="tray-label">Data Backup</span>
+                                    <div class="tray-toggle-group">
+                                        <div class="tray-toggle-btn action-btn" role="button" tabindex="0" data-action="exportData">Export</div>
+                                        <div class="tray-toggle-btn action-btn" role="button" tabindex="0" data-action="importData">Import</div>
+                                    </div>
+                                </div>
+                                <div class="tray-section"><span class="tray-label">Help</span>
+                                    <div class="tray-toggle-btn action-btn" role="button" tabindex="0" data-action="showOnboarding">Tutorial</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="ui-btn action-btn ${state.settings.showHorizon?'active':''}" role="button" tabindex="0" data-action="toggleHorizon">Horizon</div>
+                        <div class="ui-btn action-btn ${state.settings.showAchievements?'active':''}" role="button" tabindex="0" data-action="toggleAchievements">See Past</div>
+                        <div class="ui-btn action-btn" role="button" tabindex="0" data-action="scrollToToday">Today ↓</div>
+                    </div>
+                `;
+
+                state.lanes.forEach(lane => {
+                    html += `
+                        <div class="header-track sl-${lane.id} ${lane.minimized ? 'is-minimized' : ''}">
+                            <div class="track-controls">
+                                <div class="ctrl-btn cdot action-btn" style="background:${lane.color}" role="button" tabindex="0" data-action="cycleColor" data-id="${lane.id}" title="Color"></div>
+                                <div class="ctrl-btn action-btn" role="button" tabindex="0" data-action="minLane" data-id="${lane.id}" title="Minimize">-</div>
+                                <div class="ctrl-btn action-btn" role="button" tabindex="0" data-action="openNotes" data-id="${lane.id}" title="Lane Notes">📝</div>
+                                <div class="ctrl-btn del action-btn" role="button" tabindex="0" data-action="delLane" data-id="${lane.id}" title="Delete">×</div>
+                            </div>
+                            <input class="track-title action-input" type="text" value="${Utils.escape(lane.title)}" data-action="editLaneTitle" data-id="${lane.id}">
+                            <div class="restore-btn action-btn" role="button" tabindex="0" data-action="minLane" data-id="${lane.id}">${Utils.escape(lane.title)}</div>
+                        </div>
+                    `;
+                });
+
+                html += `<div class="add-col"><div class="add-btn action-btn" role="button" tabindex="0" data-action="addLane" title="Add Lane">+</div></div>`;
+
+                state.habits.forEach((habit, idx) => {
+                    const bound = idx === 0 ? 'v-bound' : ''; 
+                    html += `
+                        <div class="habit-header-col ${bound}" title="Right-Click to delete habit">
+                            <div class="habit-header-input action-contenteditable" contenteditable="true" spellcheck="false" data-id="${habit.id}">${Utils.escape(habit.title)}</div>
+                            <div class="habit-stat" id="stat-${habit.id}"></div>
+                        </div>
+                    `;
+                });
+
+                html += `
+                    <div class="add-col">
+                        <div class="habit-action-col">
+                            <div class="add-btn action-btn" role="button" tabindex="0" data-action="addHabit" title="Add Habit">+</div>
+                            <div class="st-toggle">
+                                <div class="action-btn ${state.settings.habitMode==='streak'?'active':''}" role="button" tabindex="0" data-action="setHabMode" data-val="streak">S</div>
+                                <div class="action-btn ${state.settings.habitMode==='total'?'active':''}" role="button" tabindex="0" data-action="setHabMode" data-val="total">T</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="diary-header-col v-bound"><div class="diary-title">Diary</div></div>
+                `;
+                DOM.header.innerHTML = html;
+                this.habitStats();
+                
+                if (activeFocusSelector) { setTimeout(() => { const el = document.querySelector(activeFocusSelector); if(el) { el.focus(); try{ el.selectionStart = el.selectionEnd = el.value.length; }catch(e){} } }, 10); }
+            },
+
+            notesDrawerUI() {
+                const lane = state.lanes.find(l => l.id === uiState.activeLaneNotes);
+                DOM.notesLaneTitle.innerText = lane ? `${lane.title} Notes` : 'Notes';
+                this.notesDrawerTabsOnly();
+                const activeNote = state.notes.find(n => n.id === uiState.activeNoteId);
+                if (activeNote) {
+                    DOM.noteEmptyState.style.display = 'none'; DOM.noteEditor.style.display = 'flex';
+                    DOM.noteTitleInput.value = activeNote.title; DOM.noteBodyInput.innerHTML = activeNote.content || '';
+                } else { DOM.noteEmptyState.style.display = 'block'; DOM.noteEditor.style.display = 'none'; }
+            },
+
+            notesDrawerTabsOnly() {
+                const laneNotes = state.notes.filter(n => n.laneId === uiState.activeLaneNotes);
+                let tabsHtml = '';
+                laneNotes.forEach(note => {
+                    const isActive = note.id === uiState.activeNoteId;
+                    tabsHtml += `
+                        <div class="note-tab action-btn ${isActive ? 'active' : ''}" role="button" tabindex="0" data-action="switchNote" data-id="${note.id}" title="${Utils.escape(note.title)}">
+                            ${Utils.escape(note.title) || 'Untitled'}
+                            <span class="del-note-btn action-btn" role="button" tabindex="0" data-action="deleteNote" data-id="${note.id}" title="Delete Note">×</span>
+                        </div>
+                    `;
+                });
+                DOM.notesTabs.innerHTML = tabsHtml;
+            },
+
+            horizon() {
+                let html = `<div class="empty-col"></div>`;
+                state.lanes.forEach(lane => {
+                    html += `
+                        <div class="horizon-col sl-${lane.id} ${lane.minimized ? 'is-minimized' : ''}">
+                            <div class="overdue-section" id="overdue-sec-${lane.id}">
+                                <h4 class="overdue-header">Overdue</h4>
+                                <div class="overdue-bin track" data-lane-id="${lane.id}" id="overdue-bin-${lane.id}"></div>
+                            </div>
+                            <div id="hz-${lane.id}"></div>
+                        </div>
+                    `;
+                });
+                html += `<div class="empty-col"></div><div id="horizon-span-filler" class="v-bound"></div>`;
+                DOM.horizon.innerHTML = html;
+                
+                document.querySelectorAll('.overdue-bin').forEach(bin => DragDrop.initFor(bin));
+                if(state.settings.showHorizon) { DOM.horizon.classList.add('is-expanded'); this.horizonData(); }
+            },
+
+            horizonData() {
+                if(!state.settings.showHorizon) return;
+                const sysToday = Utils.todayStr;
+
+                state.lanes.forEach(lane => {
+                    const bin = document.getElementById(`overdue-bin-${lane.id}`);
+                    const sec = document.getElementById(`overdue-sec-${lane.id}`);
+                    if(bin && sec) {
+                        bin.innerHTML = '';
+                        const overdue = state.items.filter(i => i.laneId === lane.id && !i.isDone && i.dateStr < sysToday);
+                        if (overdue.length > 0) {
+                            overdue.forEach(itemData => {
+                                const itemEl = document.createElement('div');
+                                itemEl.className = `item sl-${lane.id} ${itemData.type} is-clone is-overdue`;
+                                itemEl.dataset.id = itemData.id;
+                                itemEl.innerHTML = Render.itemHTML(itemData);
+                                bin.appendChild(itemEl);
+                            });
+                            sec.style.display = 'block';
+                        } else {
+                            sec.style.display = 'none';
+                        }
+                    }
+
+                    const container = document.getElementById(`hz-${lane.id}`);
+                    if(container) {
+                        container.innerHTML = ''; 
+                        const ul = document.createElement('ul'); ul.className = 'index-list';
+                        const hzItems = state.items.filter(i => { return i.laneId === lane.id && (i.type === 'type-outcome' || i.type === 'type-milestone') && (i.dateStr >= sysToday || i.isDone); });
+                        const mapped = hzItems.map(item => { if (!state.settings.showAchievements && item.isDone) return null; return { ...item, diffDays: Utils.getDiffDays(item.dateStr) }; }).filter(i => i !== null).sort((a, b) => a.diffDays - b.diffDays);
+
+                        mapped.forEach(data => {
+                            const li = document.createElement('li');
+                            li.dataset.date = data.dateStr; li.dataset.id = data.id; li.classList.add('item', `sl-${lane.id}`); 
+                            if (data.type === 'type-milestone') li.classList.add('type-m-index');
+                            if (data.isDone) li.classList.add('is-done');
+                            let timeStr = data.diffDays > 0 ? `${data.diffDays}d` : (data.diffDays === 0 ? 'Today' : 'Past');
+                            li.innerHTML = `<span class="index-text action-btn" role="button" tabindex="0" data-action="seekToDate" data-val="${data.dateStr}">${Utils.escape(data.text)}</span><span class="index-days">${timeStr}</span>`;
+                            ul.appendChild(li);
+                        });
+                        container.appendChild(ul);
+                    }
+                });
+                this.applyScrollFilter(); this.syncHorizonHeight(); 
+            },
+
+            syncHorizonHeight() {
+                const hz = DOM.horizon; if(!state.settings.showHorizon) { hz.style.height = ''; return; }
+                hz.style.height = 'auto'; 
+                const gridSize = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--grid-size')) || 44;
+                hz.style.height = (Math.ceil(hz.getBoundingClientRect().height / gridSize) * gridSize) + 'px';
+            },
+
+            buildDayBlock(dateStr) {
+                const curDate = Utils.parseDate(dateStr); 
+                const dayName = curDate.toLocaleString('default', { weekday: 'short' });
+                const dayNum = curDate.getDate();
+                const monthName = curDate.toLocaleString('default', { month: 'long' });
+                const dow = curDate.getDay(); 
+                
+                const sysToday = Utils.todayStr;
+                const isPast = dateStr < sysToday, isFuture = dateStr > sysToday, isToday = dateStr === sysToday;
+                const monthStr = (dayNum === 1 || isToday) ? monthName.substring(0,3) + " '" + curDate.getFullYear().toString().substring(2) : '';
+
+                const dayBlock = document.createElement('div');
+                dayBlock.className = `grid-row day-block ${isToday?'is-today':''} ${isPast?'is-past':''} ${isFuture?'is-future':''} ${(dow===0||dow===6)?'is-weekend':''}`;
+                dayBlock.dataset.date = dateStr; 
+
+                let tracksHTML = ''; state.lanes.forEach(lane => { tracksHTML += `<div class="track sl-${lane.id} ${lane.minimized ? 'is-minimized' : ''}" data-lane-id="${lane.id}"></div>`; });
+                let habitCellsHTML = ''; state.habits.forEach((habit, idx) => {
+                    const isChecked = state.habitChecks[dateStr]?.[habit.id];
+                    habitCellsHTML += `<div class="habit-cell ${idx === 0 ? 'v-bound' : ''}"><div class="habit-box action-btn ${isChecked ? 'is-checked' : ''}" role="button" tabindex="0" data-action="toggleHabit" data-date="${dateStr}" data-id="${habit.id}"></div></div>`;
+                });
+
+                dayBlock.innerHTML = `
+                    <div class="date-col">
+                        <div class="month-label">${monthStr}</div>
+                        <div class="day-label">${dayName} ${dayNum}</div>
+                        <span class="day-toggle action-btn" role="button" tabindex="0" data-action="toggleDay">▼</span>
+                        <div class="dprog" id="dp-${dateStr}"><div class="dprog-fill"></div></div>
+                    </div>
+                    ${tracksHTML}
+                    <div class="empty-col"></div>
+                    ${habitCellsHTML}
+                    <div class="empty-col"></div>
+                    <div class="diary-cell v-bound"><textarea class="diary-input action-input" spellcheck="false" data-action="editDiary" data-date="${dateStr}">${Utils.escape(state.diary[dateStr] || '')}</textarea></div>
+                `;
+                dayMap.set(dateStr, dayBlock); return dayBlock;
+            },
+
+            trackContent(dateStr) {
+                const dayBlock = dayMap.get(dateStr); if(!dayBlock) return;
+                state.lanes.forEach(lane => {
+                    const track = dayBlock.querySelector(`.track.sl-${lane.id}`); if(!track) return;
+                    if (track.contains(document.activeElement)) return; 
+                    if (track._sortable) { track._sortable.destroy(); track._sortable = null; }
+                    track.innerHTML = '';
+                    state.items.filter(i => i.dateStr === dateStr && i.laneId === lane.id).forEach(itemData => {
+                        const itemEl = document.createElement('div');
+                        itemEl.className = `item sl-${lane.id} ${itemData.type} ${itemData.isDone ? 'is-done' : ''}`;
+                        itemEl.dataset.id = itemData.id;
+                        itemEl.innerHTML = Render.itemHTML(itemData); track.appendChild(itemEl);
+                    });
+                    DragDrop.initFor(track);
+                });
+            },
+
+            itemHTML(itemData) {
+                const typeConfig = Config.itemTypes.find(t => t.id === itemData.type) || Config.itemTypes[0];
+                const isUrl = /^https?:\/\//i.test(itemData.text);
+                const linkBtn = isUrl ? `<a href="${Utils.escape(itemData.text)}" target="_blank" class="url-btn action-btn" tabindex="-1">↗</a>` : '';
+                return `
+                    <span class="type-badge action-btn" role="button" tabindex="0" title="Drag to move. Right-Click or Double-Tap to complete." data-action="cycleType">${typeConfig.label}</span>
+                    ${linkBtn}
+                    <input type="text" class="text-input action-input" value="${Utils.escape(itemData.text)}" autocomplete="off" spellcheck="false" data-action="editTask">
+                    <span class="countdown"></span>
+                    <div class="del-item-btn action-btn" role="button" tabindex="0" data-action="deleteItem" title="Delete">×</div>
+                `;
+            },
+
+            habitStats() {
+                const sysToday = Utils.todayStr;
+                state.habits.forEach((habit) => {
+                    let count = 0, streakCount = 0;
+                    const allDates = Object.keys(state.habitChecks).filter(d => d <= sysToday).sort().reverse();
+                    for (const d of allDates) {
+                        if (state.habitChecks[d]?.[habit.id]) { count++; streakCount++; } else if(state.settings.habitMode === 'streak') break;
+                    }
+                    const display = document.getElementById(`stat-${habit.id}`);
+                    if(display) display.innerText = state.settings.habitMode === 'total' ? count : streakCount;
+                });
+            },
+
+            updateDayToggles() {
+                document.querySelectorAll('.day-block').forEach(block => {
+                    const toggle = block.querySelector('.day-toggle'); 
+                    let taskCount = 0;
+                    block.querySelectorAll('.track').forEach(track => { taskCount += track.children.length; });
+                    
+                    if(toggle) {
+                        toggle.style.display = taskCount > 1 ? 'block' : 'none';
+                        if (taskCount <= 1 && block.classList.contains('collapsed')) {
+                            block.classList.remove('collapsed');
+                            toggle.innerText = '▼';
+                        }
+                    }
+
+                    block.querySelectorAll('.type-outcome').forEach(outcome => {
+                        const d = Utils.getDiffDays(block.dataset.date);
+                        const span = outcome.querySelector('.countdown');
+                        if(span) span.innerText = d > 0 ? `(${d}d)` : d === 0 ? `(Today)` : `(Past)`;
+                    });
+                });
+            },
+
+            updateProgress() {
+                dayMap.forEach((block, dateStr) => {
+                    const prog = document.getElementById(`dp-${dateStr}`); if(!prog) return;
+                    const all = state.items.filter(i => i.dateStr === dateStr);
+                    if(!all.length) { prog.classList.remove('show'); return; }
+                    prog.classList.add('show');
+                    prog.querySelector('.dprog-fill').style.width = Math.round(all.filter(i => i.isDone).length / all.length * 100) + '%';
+                });
+            },
+
+            applyScrollFilter() {
+                if (!state.settings.showHorizon) return;
+                const hh = DOM.header.getBoundingClientRect().height;
+                document.querySelectorAll('.index-list li[data-date]').forEach(li => {
+                    const dayBlock = dayMap.get(li.dataset.date);
+                    if (!dayBlock) { li.style.display = state.settings.horizonMode === 'scroll' ? 'none' : 'flex'; return; }
+                    li.style.display = state.settings.horizonMode === 'all' ? 'flex' : (dayBlock.getBoundingClientRect().top > hh ? 'none' : 'flex');
+                });
+            }
+        };
+
+        const VirtualScroll = {
+            pendingForward: false, pendingBackward: false,
+            init() {
+                this.reset();
+                const observer = new IntersectionObserver((entries) => {
+                    entries.forEach(entry => {
+                        if(entry.isIntersecting) { if(entry.target.id === 'scroll-sentinel') this.pendingForward = true; if(entry.target.id === 'top-sentinel') this.pendingBackward = true; } 
+                        else { if(entry.target.id === 'scroll-sentinel') this.pendingForward = false; if(entry.target.id === 'top-sentinel') this.pendingBackward = false; }
+                    });
+                    if (!isVirtualizing) this.processPending();
+                }, { rootMargin: '400px' }); 
+                observer.observe(DOM.bottomSentinel); observer.observe(DOM.topSentinel);
+            },
+            processPending() {
+                if (isVirtualizing) return;
+                if (this.pendingForward) this.loadForward(30); else if (this.pendingBackward) this.loadBackward(30);
+            },
+            reset() {
+                renderStartDate = Utils.today; if (!state.settings.showAchievements) { renderStartDate.setDate(renderStartDate.getDate() - 1); } else { renderStartDate.setDate(renderStartDate.getDate() - 30); }
+                renderEndDate = new Date(renderStartDate.getTime()); renderEndDate.setDate(renderEndDate.getDate() - 1); 
+                this.loadForward(60); 
+            },
+            seekToDate(targetDateStr) {
+                const target = Utils.parseDate(targetDateStr);
+                const existing = dayMap.get(targetDateStr);
+                if (existing && document.body.contains(existing)) {
+                    existing.classList.remove('collapsed');
+                    const offset = DOM.header.offsetHeight + (state.settings.showHorizon ? DOM.horizon.offsetHeight : 0) + 10;
+                    setTimeout(() => window.scrollTo({top: existing.getBoundingClientRect().top + window.scrollY - offset, behavior: 'smooth'}), 10);
+                    return;
+                }
+                DOM.body.innerHTML = ''; dayMap.clear();
+                renderStartDate = new Date(target.getTime()); renderStartDate.setDate(renderStartDate.getDate() - 15);
+                renderEndDate = new Date(renderStartDate.getTime()); renderEndDate.setDate(renderEndDate.getDate() - 1); 
+                this.loadForward(40);
+                setTimeout(() => { 
+                    const el = dayMap.get(targetDateStr); 
+                    if(el) window.scrollTo({top: el.getBoundingClientRect().top + window.scrollY - (DOM.header.offsetHeight + (state.settings.showHorizon ? DOM.horizon.offsetHeight : 0) + 10), behavior: 'auto'}); 
+                }, 50);
+            },
+            loadForward(count) {
+                isVirtualizing = true; const frag = document.createDocumentFragment(); const datesAdded = [];
+                for(let i=0; i<count; i++) { renderEndDate.setDate(renderEndDate.getDate() + 1); const dStr = Utils.toLocalISO(renderEndDate); frag.appendChild(Render.buildDayBlock(dStr)); datesAdded.push(dStr); }
+                DOM.body.appendChild(frag); datesAdded.forEach(dStr => Render.trackContent(dStr)); Render.updateDayToggles(); Render.updateProgress();
+                this.cleanupTop(); requestAnimationFrame(() => { requestAnimationFrame(() => { isVirtualizing = false; this.processPending(); }); });
+            },
+            loadBackward(count) {
+                if (!state.settings.showAchievements && renderStartDate <= Utils.today) { this.pendingBackward = false; return; }
+                isVirtualizing = true; const frag = document.createDocumentFragment(); const datesAdded = [];
+                for(let i=0; i<count; i++) { renderStartDate.setDate(renderStartDate.getDate() - 1); datesAdded.unshift(Utils.toLocalISO(renderStartDate)); }
+                datesAdded.forEach(dStr => frag.appendChild(Render.buildDayBlock(dStr)));
+                const oldScroll = document.documentElement.scrollHeight; const oldTop = window.scrollY;
+                DOM.body.insertBefore(frag, DOM.body.firstChild); datesAdded.forEach(dStr => Render.trackContent(dStr)); Render.updateDayToggles(); Render.updateProgress();
+                window.scrollTo(0, oldTop + (document.documentElement.scrollHeight - oldScroll)); this.cleanupBottom();
+                requestAnimationFrame(() => { requestAnimationFrame(() => { isVirtualizing = false; this.processPending(); }); });
+            },
+            cleanupTop() {
+                const days = document.querySelectorAll('.day-block');
+                if(days.length > Config.maxRenderedDays) {
+                    const toRemove = days.length - Config.maxRenderedDays; let removedHeight = 0;
+                    for(let i=0; i<toRemove; i++) { removedHeight += days[i].offsetHeight; days[i].querySelectorAll('.track').forEach(t => { if(t._sortable) t._sortable.destroy(); }); dayMap.delete(days[i].dataset.date); days[i].remove(); }
+                    renderStartDate = Utils.parseDate(days[toRemove].dataset.date); window.scrollBy(0, -removedHeight);
+                }
+            },
+            cleanupBottom() {
+                const days = document.querySelectorAll('.day-block');
+                if(days.length > Config.maxRenderedDays) {
+                    const toRemove = days.length - Config.maxRenderedDays;
+                    for(let i=days.length-1; i >= days.length - toRemove; i--) { days[i].querySelectorAll('.track').forEach(t => { if(t._sortable) t._sortable.destroy(); }); dayMap.delete(days[i].dataset.date); days[i].remove(); }
+                    renderEndDate = Utils.parseDate(days[days.length-toRemove-1].dataset.date);
+                }
+            }
+        };
+
+        const DragDrop = {
+            initFor(trackEl) {
+                if (!trackEl._sortable) {
+                    trackEl._sortable = new Sortable(trackEl, {
+                        group: 'matrix', animation: 150, handle: '.type-badge', ghostClass: 'sortable-ghost',
+                        onStart: () => document.body.classList.add('is-dragging'),
+                        onEnd: function(evt) { 
+                            document.body.classList.remove('is-dragging');
+                            const id = evt.item.dataset.id; const toBlock = evt.to.closest('.day-block');
+                            if (!state.items.find(i => i.id === id)) { EventBus.emit('itemsChanged'); return; }
+                            if (toBlock && !evt.to.classList.contains('overdue-bin')) {
+                                const domIds = Array.from(evt.to.children).map(child => child.dataset.id).filter(Boolean);
+                                Actions.reorderTrack(id, toBlock.dataset.date, evt.to.dataset.laneId, domIds);
+                            } else { EventBus.emit('itemsChanged'); }
+                        } 
+                    });
+                }
+            }
+        };
+
+        const Search = {
+            init() {
+                let searchTimer;
+                DOM.searchInput.addEventListener('input', (e) => { clearTimeout(searchTimer); searchTimer = setTimeout(() => this.query(e.target.value), 200); });
+                document.addEventListener('keydown', (e) => {
+                    if((e.ctrlKey || e.metaKey) && e.key === 'k') { e.preventDefault(); this.toggle(); }
+                    if(e.key === 'Escape' && DOM.searchOverlay.classList.contains('is-open')) this.toggle(false);
+                });
+                DOM.searchOverlay.addEventListener('click', (e) => { if(e.target === DOM.searchOverlay) this.toggle(false); });
+            },
+            toggle(forceState) {
+                const isOpen = forceState !== undefined ? forceState : !DOM.searchOverlay.classList.contains('is-open');
+                DOM.searchOverlay.classList.toggle('is-open', isOpen);
+                if(isOpen) { DOM.searchInput.value = ''; DOM.searchResults.innerHTML = ''; setTimeout(() => DOM.searchInput.focus(), 50); }
+            },
+            query(text) {
+                DOM.searchResults.innerHTML = ''; if(text.trim().length < 2) return;
+                const lower = text.toLowerCase(); const results = [];
+                state.items.forEach(i => { if(i.text.toLowerCase().includes(lower)) results.push({ d: i.dateStr, t: i.text, type: 'Task' }); });
+                Object.keys(state.diary).forEach(d => { if(state.diary[d].toLowerCase().includes(lower)) { let snippet = state.diary[d]; if (snippet.length > 80) snippet = snippet.substring(0, 80) + '...'; results.push({ d: d, t: snippet, type: 'Diary' }); } });
+                results.sort((a,b) => b.d.localeCompare(a.d)).slice(0, 15).forEach(res => {
+                    const li = document.createElement('li'); li.className = 'search-item';
+                    li.innerHTML = `<span class="search-item-date">${res.d} &middot; ${res.type}</span><span class="search-item-text">${Utils.escape(res.t)}</span>`;
+                    li.addEventListener('click', () => { this.toggle(false); VirtualScroll.seekToDate(res.d); });
+                    DOM.searchResults.appendChild(li);
+                });
+            }
+        };
+
+        function BusWrap(evt, cb) { EventBus.on(evt, cb); }
+
+        const Events = {
+            bind() {
+                window.addEventListener('beforeunload', () => { clearTimeout(saveTimer); Store.save(); });
+                document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') { clearTimeout(saveTimer); Store.save(); } });
+
+                DOM.importUpload.addEventListener('change', (e) => {
+                    const file = e.target.files[0]; if (!file) return;
+                    const reader = new FileReader();
+                    reader.onload = (ev) => {
+                        try { const data = JSON.parse(ev.target.result); if (data && data.version) { Undo.snap('Import Backup'); Store.hydrate(data); Store.save(); location.reload(); } else alert("Invalid backup file."); } catch(err) { alert("Error reading file."); }
+                        e.target.value = ''; 
+                    }; reader.readAsText(file);
+                });
+
+                document.addEventListener('click', (e) => {
+                    // Make links in notes clickable
+                    if(e.target.tagName === 'A' && e.target.closest('#note-text-input')) {
+                        window.open(e.target.href, '_blank');
+                    }
+
+                    if(e.target.closest('#btn-link')) {
+                        e.preventDefault();
+                        const url = prompt('Enter link URL (including https://):', 'https://');
+                        if(url) { document.execCommand('createLink', false, url); DOM.noteBodyInput.dispatchEvent(new Event('input', {bubbles:true})); }
+                    }
+
+                    const btn = e.target.closest('.action-btn');
+                    if(btn) {
+                        const action = btn.dataset.action;
+                        if (e.type === 'click' && btn.getAttribute('role') === 'button') { e.target.blur(); } 
+                        
+                        if(action === 'toggleSettings') document.getElementById('settings-tray').classList.toggle('is-open');
+                        if(action === 'setTheme') Actions.toggleSetting('theme', btn.dataset.val);
+                        if(action === 'setHzMode') Actions.toggleSetting('horizonMode', btn.dataset.val);
+                        if(action === 'toggleAchievements') Actions.toggleAchievement();
+                        if(action === 'toggleHorizon') { if (!state.settings.showHorizon) VirtualScroll.seekToDate(Utils.todayStr); Actions.toggleHorizon(); }
+                        if(action === 'closeOnboarding') { DOM.onboarding.classList.remove('is-active'); localStorage.setItem('swimlane_onboarded', 'true'); }
+                        if(action === 'showOnboarding') DOM.onboarding.classList.add('is-active');
+                        
+                        if(action === 'exportData') Actions.exportData();
+                        if(action === 'importData') Actions.importData();
+
+                        if(action === 'scrollToToday') VirtualScroll.seekToDate(Utils.todayStr);
+                        if(action === 'seekToDate') VirtualScroll.seekToDate(btn.dataset.val);
+                        
+                        if(action === 'minLane') Actions.minLane(btn.dataset.id);
+                        if(action === 'delLane') Actions.delLane(btn.dataset.id);
+                        if(action === 'addLane') Actions.addLane();
+                        if(action === 'cycleColor') Actions.cycleLaneColor(btn.dataset.id);
+                        
+                        if(action === 'toggleHabit') { const nowChecked = !btn.classList.contains('is-checked'); btn.classList.toggle('is-checked', nowChecked); Actions.toggleHabit(btn.dataset.date, btn.dataset.id, nowChecked); }
+                        if(action === 'setHabMode') Actions.toggleSetting('habitMode', btn.dataset.val);
+                        if(action === 'addHabit') Actions.addHabit();
+
+                        if(action === 'cycleType') Actions.cycleType(btn.closest('.item').dataset.id);
+                        if(action === 'deleteItem') Actions.deleteItem(btn.closest('.item').dataset.id);
+                        if(action === 'toggleDay') { const b = btn.closest('.day-block'); b.classList.toggle('collapsed'); btn.innerText = b.classList.contains('collapsed') ? '▶' : '▼'; }
+                        
+                        if(action === 'openNotes') Actions.openNotes(btn.dataset.id);
+                        if(action === 'closeNotes') Actions.closeNotes();
+                        if(action === 'addNote') Actions.addNote();
+                        if(action === 'switchNote') Actions.switchNote(btn.dataset.id);
+                        if(action === 'deleteNote') { Actions.deleteNote(btn.dataset.id); e.stopPropagation(); return; }
+                        return;
+                    }
+                    
+                    if (!e.target.closest('.control-panel') && !e.target.closest('.search-modal') && !e.target.closest('.onboarding-modal') && !e.target.closest('.notes-drawer')) { const t = document.getElementById('settings-tray'); if(t) t.classList.remove('is-open'); }
+                    
+                    const track = e.target.closest('.track');
+                    if (track && !track.classList.contains('is-minimized') && !track.classList.contains('overdue-bin') && e.target === track) Actions.addItem(track.closest('.day-block').dataset.date, track.dataset.laneId);
+                });
+
+                document.addEventListener('contextmenu', (e) => {
+                    const itemEl = e.target.closest('.item'); if(itemEl) { e.preventDefault(); Actions.toggleDone(itemEl.dataset.id); return; }
+                    const hab = e.target.closest('.habit-header-col'); if(hab) { e.preventDefault(); Actions.delHabit(hab.querySelector('.action-contenteditable').dataset.id); }
+                });
+
+                let lastTap = 0;
+                document.addEventListener('touchend', (e) => {
+                    if (!e.target.closest('.track')) return; 
+                    const itemEl = e.target.closest('.item');
+                    if (itemEl && !e.target.classList.contains('action-input') && !e.target.classList.contains('action-btn')) {
+                        const currentTime = new Date().getTime();
+                        if (currentTime - lastTap < 500 && currentTime - lastTap > 0) { Actions.toggleDone(itemEl.dataset.id); e.preventDefault(); }
+                        lastTap = currentTime;
+                    }
+                });
+
+                document.addEventListener('input', (e) => {
+                    if(e.target.classList.contains('action-input')) {
+                        const action = e.target.dataset.action;
+                        if(action === 'editLaneTitle') Actions.updateLaneTitle(e.target.dataset.id, e.target.value);
+                        if(action === 'editDiary') Actions.updateDiary(e.target.dataset.date, e.target.value);
+                        if(action === 'editTask') {
+                            const id = e.target.closest('.item').dataset.id;
+                            document.querySelectorAll(`.item[data-id="${id}"] .text-input`).forEach(el => { if(el !== e.target) el.value = e.target.value; });
+                            clearTimeout(e.target._saveTimer); e.target._saveTimer = setTimeout(() => Actions.updateTaskText(id, e.target.value), 300);
+                        }
+                        if(action === 'editNoteTitle') { clearTimeout(e.target._saveTimer); e.target._saveTimer = setTimeout(() => Actions.updateNoteTitle(uiState.activeNoteId, e.target.value), 200); }
+                        if(action === 'editNoteBody') { clearTimeout(e.target._saveTimer); e.target._saveTimer = setTimeout(() => Actions.updateNoteBody(uiState.activeNoteId, e.target.innerHTML), 300); }
+                    }
+                });
+
+                // Update formatting buttons state
+                document.addEventListener('selectionchange', () => {
+                    if(document.activeElement === DOM.noteBodyInput) {
+                        document.getElementById('btn-bold').classList.toggle('is-active', document.queryCommandState('bold'));
+                        document.getElementById('btn-italic').classList.toggle('is-active', document.queryCommandState('italic'));
+                        document.getElementById('btn-underline').classList.toggle('is-active', document.queryCommandState('underline'));
+                        document.getElementById('btn-list').classList.toggle('is-active', document.queryCommandState('insertUnorderedList'));
+                    }
+                });
+
+                document.addEventListener('focusout', (e) => {
+                    if(e.target.classList.contains('action-contenteditable')) { const val = e.target.innerText.trim(); Actions.updateHabitTitle(e.target.dataset.id, val); e.target.innerText = val || 'Habit'; }
+                    if(e.target.classList.contains('text-input')) { setTimeout(() => { const itemEl = e.target.closest('.item'); if(itemEl && !itemEl.contains(document.activeElement)) Actions.sweepEmpty(itemEl.dataset.id); }, 50); }
+                });
+
+                document.addEventListener('paste', (e) => {
+                    const text = (e.clipboardData || window.clipboardData).getData('text/plain');
+                    if(e.target.classList.contains('action-contenteditable')) {
+                        e.preventDefault(); const selection = window.getSelection(); if (!selection.rangeCount) return;
+                        selection.deleteFromDocument(); selection.getRangeAt(0).insertNode(document.createTextNode(text)); selection.collapseToEnd();
+                        Actions.updateHabitTitle(e.target.dataset.id, e.target.innerText.trim());
+                    } else if (e.target.classList.contains('diary-input')) {
+                        e.preventDefault(); const start = e.target.selectionStart; const end = e.target.selectionEnd;
+                        e.target.value = e.target.value.substring(0, start) + text + e.target.value.substring(end);
+                        e.target.selectionStart = e.target.selectionEnd = start + text.length; Actions.updateDiary(e.target.dataset.date, e.target.value);
+                    }
+                });
+
+                document.addEventListener('keydown', (e) => {
+                    if((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) { if(!e.target.matches('input, textarea, [contenteditable]')) { e.preventDefault(); Undo.perform(); return; } }
+                    if(e.target.classList.contains('action-contenteditable') && e.key === 'Enter') { e.preventDefault(); e.target.blur(); }
+                    if(e.target.getAttribute('role') === 'button' && e.key === 'Enter') { e.target.click(); }
+                    if (e.target.dataset.action === 'editTask') {
+                        const itemEl = e.target.closest('.item'); const id = itemEl.dataset.id;
+                        if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') { Actions.toggleDone(id); return; }
+                        if (e.key === 'Enter') {
+                            e.preventDefault(); e.target.blur(); const track = itemEl.closest('.track');
+                            if(track && !track.classList.contains('overdue-bin')) { Actions.addItem(track.closest('.day-block').dataset.date, track.dataset.laneId); const block = itemEl.closest('.day-block'); if(block) block.classList.remove('collapsed'); }
+                        }
+                        if (e.key === 'Backspace' && e.target.value === '') { e.preventDefault(); const prev = itemEl.previousElementSibling; Actions.deleteItem(id); if (prev && prev.classList.contains('item')) prev.querySelector('.text-input').focus(); }
+                    }
+                });
+
+                document.getElementById('undo-btn').addEventListener('click', () => Undo.perform());
+                setInterval(() => { const freshToday = Utils.todayStr; if(freshToday !== currentUiToday) { currentUiToday = freshToday; Actions.softRollover(); } }, 60000);
+                
+                let scrollTimeout; window.addEventListener('scroll', () => { if(state.settings.showHorizon && state.settings.horizonMode === 'scroll') { if(scrollTimeout) cancelAnimationFrame(scrollTimeout); scrollTimeout = requestAnimationFrame(() => Render.applyScrollFilter()); } });
+            }
+        };
+
+        async function bootstrap() {
+            try { await Store.init(); await Store.load(); } catch(e) { console.error("Boot Failed", e); }
+            applySettings(); Render.init(); VirtualScroll.init(); Search.init(); Events.bind();
+            if (!localStorage.getItem('swimlane_onboarded')) DOM.onboarding.classList.add('is-active');
+            const t = document.querySelector('.is-today'); if(t) setTimeout(() => window.scrollTo({top: t.getBoundingClientRect().top + window.scrollY - 150, behavior: 'smooth'}), 50);
+        }
+
+        return { init: bootstrap };
+    })();
+
+    App.init();
+
+</script>
+</body>
+</html>
