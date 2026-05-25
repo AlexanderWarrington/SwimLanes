@@ -1,0 +1,23 @@
+{
+  "cli_version": "0.6.2",
+  "checkpoint_id": "295cbc5af8c2",
+  "strategy": "manual-commit",
+  "branch": "fix/js-bugs-and-tooling",
+  "checkpoints_count": 1,
+  "files_touched": null,
+  "sessions": [
+    {
+      "metadata": "/29/5cbc5af8c2/0/metadata.json",
+      "transcript": "/29/5cbc5af8c2/0/full.jsonl",
+      "content_hash": "/29/5cbc5af8c2/0/content_hash.txt",
+      "prompt": "/29/5cbc5af8c2/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 99,
+    "cache_creation_tokens": 93055,
+    "cache_read_tokens": 5935122,
+    "output_tokens": 48057,
+    "api_call_count": 85
+  }
+}
