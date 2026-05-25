@@ -1,0 +1,74 @@
+# Swimlane Journal — Windsurf Rules
+
+## Project overview
+
+Single-file HTML/CSS/JS app (`Swimlane_App.html`). No build step, no npm, no server.
+All JavaScript is one IIFE inside a `<script>` tag. State is in IndexedDB.
+See CLAUDE.md for full architecture notes.
+
+## When to run the browser-check tool
+
+Run `node tools/browser-check.js` whenever:
+- A white screen or blank page is reported
+- JavaScript appears to render as plain text in the browser
+- Any change is made to the `<script>` block in `Swimlane_App.html`
+- A "SyntaxError" or "Invalid or unexpected token" is suspected
+
+The tool launches a headless Chromium browser via Playwright, loads the file,
+captures all page-level JS errors and console warnings, checks that the DOM has
+rendered content, and saves a screenshot to `tools/screenshot.png`.
+
+## How to run it
+
+```
+node tools/browser-check.js
+```
+
+Or for a specific file:
+
+```
+node tools/browser-check.js path/to/file.html
+```
+
+Exit code 0 = pass (no JS errors, day blocks rendered).
+Exit code 1 = fail (see output for details).
+
+## Common errors and what they mean
+
+| Error message | Likely cause | Fix |
+|---|---|---|
+| `Invalid or unexpected token` | Broken string literal or illegal character in JS | Check the `escape` function, look for `'\\'` followed by orphan `'` |
+| `Uncaught SyntaxError: Unexpected end of input` | Unbalanced braces/brackets | Check for missing `}` or `)` in the IIFE |
+| White screen, no page errors | DOM not built — check `VirtualScroll.init()` | Look for runtime errors in `bootstrap()` |
+| JS renders as text | `</script>` literal inside a `<script>` comment | Escape it as `<\/script>` |
+| `browserType.launch: Executable doesn't exist` | Chromium not installed | Run `npx playwright install chromium` |
+
+## HTML-in-script pitfalls (hard-won lessons)
+
+1. **Never put `</script>` literally inside a `<script>` block** — even in a comment.
+   The HTML parser terminates the script tag there. Use `<\/script>` instead.
+
+2. **Single-quote strings in JS that contain `'`** — use a double-quoted string to
+   avoid escaping headaches: `"&#39;"` not `'\''`.
+
+3. **HTML entities in `<script>` tags are NOT decoded** — `&amp;` stays as the
+   literal string `&amp;` in JavaScript. This is correct for the `Utils.escape`
+   function whose output should be HTML entity strings.
+
+## JavaScript syntax check (no browser needed)
+
+To quickly check JS syntax without launching a browser:
+
+```powershell
+$html = Get-Content Swimlane_App.html -Raw -Encoding UTF8
+$start = $html.IndexOf('<script>') + '<script>'.Length
+$end   = $html.LastIndexOf('</script>')
+$js    = $html.Substring($start, $end - $start)
+[System.IO.File]::WriteAllText("extracted.js", $js, [System.Text.Encoding]::UTF8)
+node --check extracted.js
+Remove-Item extracted.js
+```
+
+## gh CLI path
+
+`"C:\Program Files\GitHub CLI\gh.exe"` — not in PATH, use full path.

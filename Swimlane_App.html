@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -516,7 +516,7 @@
     <div class="overlay-bg" id="onboarding-overlay" style="z-index: 9999;">
         <div class="onboarding-modal">
             <h1>Time, Untangled.</h1>
-            <p class="subtitle">Welcome to Swimlane—your continuous, infinite-canvas journal.</p>
+            <p class="subtitle">Welcome to Swimlane-your continuous, infinite-canvas journal.</p>
             <ul>
                 <li><strong>The Infinite Canvas:</strong> Traditional journals trap you in pages. Here, time is fluid. Scroll up into the past, or down into the future.</li>
                 <li><strong>Projects & Notes:</strong> Click the 📁 or 📝 icons in a lane header to manage backlog tasks and long-form notes outside of the timeline. Tabs are fully draggable.</li>
@@ -616,10 +616,10 @@
 <script>
     /*
      * ═══════════════════════════════════════════════════════════════════════
-     *  SWIMLANE JOURNAL — Master Edition
+     *  SWIMLANE JOURNAL - Master Edition
      *
      *  A single-page web app delivered as one self-contained HTML file.
-     *  Open it in any modern browser — no build step, no npm, no bundler.
+     *  Open it in any modern browser - no build step, no npm, no bundler.
      *  All JavaScript lives inside one IIFE (Immediately-Invoked Function
      *  Expression) called App so nothing leaks into the browser's globals.
      *
@@ -627,39 +627,39 @@
      *
      *  FRONTEND (everything you see runs in the browser)
      *  • Vanilla HTML5 / CSS3 / JavaScript (ES2020+)
-     *    — No React, Vue, Angular or any JS framework.
-     *    — CSS Grid powers the multi-column calendar layout.
-     *    — CSS Custom Properties (variables) handle theming and per-lane colours.
-     *  • Google Fonts — "Caveat" (the handwritten journal font)
+     *    - No React, Vue, Angular or any JS framework.
+     *    - CSS Grid powers the multi-column calendar layout.
+     *    - CSS Custom Properties (variables) handle theming and per-lane colours.
+     *  • Google Fonts - "Caveat" (the handwritten journal font)
      *    Loaded from: fonts.googleapis.com
      *    Weight variants: 400 (regular), 600 (semi-bold), 700 (bold)
-     *  • SortableJS (latest) — drag-and-drop library for reordering tasks
+     *  • SortableJS (latest) - drag-and-drop library for reordering tasks
      *    Loaded from: cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js
      *    Used for: dragging tasks between days and between lanes
      *  • Browser APIs used:
-     *    — IntersectionObserver  : detects when the user scrolls near the
+     *    - IntersectionObserver  : detects when the user scrolls near the
      *                              top/bottom edge so VirtualScroll can load more days
-     *    — crypto.randomUUID()   : generates collision-proof unique IDs for items
-     *    — IndexedDB             : primary storage (fast, offline-capable, large quota)
-     *    — localStorage          : fallback if IndexedDB is unavailable
+     *    - crypto.randomUUID()   : generates collision-proof unique IDs for items
+     *    - IndexedDB             : primary storage (fast, offline-capable, large quota)
+     *    - localStorage          : fallback if IndexedDB is unavailable
      *
      *  STORAGE
      *  • All data is stored as a single JSON blob (the `state` object below)
      *    in IndexedDB with a localStorage fallback. Every save writes the full
-     *    blob — simple and robust for a single-user journal.
+     *    blob - simple and robust for a single-user journal.
      *
      *  ── HIGH-LEVEL APP FLOW ───────────────────────────────────────────────
      *
-     *  1. bootstrap()       — entry point; loads data, wires up all modules
-     *  2. Store             — reads/writes JSON to IndexedDB / localStorage
-     *  3. State             — the single source of truth (all journal data)
-     *  4. Actions           — the ONLY place State is mutated (one-way flow)
-     *  5. EventBus          — Actions fire events; Render listens and reacts
-     *  6. Render            — turns State into visible HTML on screen
-     *  7. VirtualScroll     — only keeps ~120 day-rows in the DOM at once
-     *  8. DragDrop          — wires SortableJS onto each lane track
-     *  9. Search            — full-text Ctrl+K command palette
-     * 10. Events            — global click/keydown listener → calls Actions
+     *  1. bootstrap()       - entry point; loads data, wires up all modules
+     *  2. Store             - reads/writes JSON to IndexedDB / localStorage
+     *  3. State             - the single source of truth (all journal data)
+     *  4. Actions           - the ONLY place State is mutated (one-way flow)
+     *  5. EventBus          - Actions fire events; Render listens and reacts
+     *  6. Render            - turns State into visible HTML on screen
+     *  7. VirtualScroll     - only keeps ~120 day-rows in the DOM at once
+     *  8. DragDrop          - wires SortableJS onto each lane track
+     *  9. Search            - full-text Ctrl+K command palette
+     * 10. Events            - global click/keydown listener - calls Actions
      * ═══════════════════════════════════════════════════════════════════════
      */
     const App = (function() {
@@ -668,7 +668,7 @@
         // App-wide constants. Nothing in here changes while the app is running.
         const Config = {
             // The badge types a task can cycle through. Each has a short letter label
-            // shown on the coloured square in the UI. Pressing the badge rotates T→M→O→E→T.
+            // shown on the coloured square in the UI. Pressing the badge rotates T-M-O-E-T.
             itemTypes: [{ id: 'type-task', label: 'T' }, { id: 'type-milestone', label: 'M' }, { id: 'type-outcome', label: 'O' }, { id: 'type-event', label: 'E' }],
             // Eight accent colours that new lanes get assigned in order.
             // Users can also manually rotate a lane's colour by clicking its colour dot.
@@ -689,7 +689,7 @@
 
         // ─── UTILS ───────────────────────────────────────────────────────────────
         // Stateless helper toolkit used by every other module.
-        // Nothing in here reads or writes State — it is pure utility.
+        // Nothing in here reads or writes State - it is pure utility.
         const Utils = {
             // Generates a collision-safe unique ID string.
             // Used whenever a new lane, habit, item or note is created.
@@ -704,7 +704,7 @@
             // padStart ensures single-digit months/days get a leading zero (e.g. "2025-01-05").
             toLocalISO: (d) => { const y = d.getFullYear(); const m = String(d.getMonth() + 1).padStart(2, '0'); const day = String(d.getDate()).padStart(2, '0'); return `${y}-${m}-${day}`; },
             // Returns today's Date object with the clock zeroed to midnight.
-            // The setHours(0,0,0,0) call is critical — without it, comparisons like
+            // The setHours(0,0,0,0) call is critical - without it, comparisons like
             // "d < today" would be wrong for earlier hours of the current day.
             get today() { const d = new Date(); d.setHours(0,0,0,0); return d; },
             // Today as a "YYYY-MM-DD" string, ready for direct comparison against stored dateStr values.
@@ -714,9 +714,9 @@
             // Used by the Horizon panel to display countdown labels like "5d" or "Past".
             getDiffDays: (dateStr) => { return Math.round((Utils.parseDate(dateStr) - Utils.today) / 86400000); },
             // Escapes HTML special characters in user-provided strings before injecting them
-            // into innerHTML. Prevents XSS — e.g. a task named "<script>alert(1)</script>"
+            // into innerHTML. Prevents XSS - e.g. a task named "<script>alert(1)<\/script>"
             // renders as visible text rather than executing as code.
-            escape: (str) => String(str || '').replace(/[&<>"']/g, match => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[match]),
+            escape: (str) => String(str || '').replace(/[&<>"']/g, match => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": "&#39;" })[match]),
             formatTime: (ms) => {
                 if (!ms || ms < 0) return "0h 0m";
                 let totalMins = Math.floor(ms / 60000);
@@ -736,15 +736,15 @@
         // Every visible element on screen is derived from this object.
         // Persisted to IndexedDB on every change and reloaded on startup.
         //
-        //  lanes        — the vertical swim-lane columns (title, colour, minimized flag)
-        //  habits       — the daily habit tracker columns (title + unique id)
-        //  items        — every task/milestone/outcome/event placed on the grid
-        //  notes        — rich-text notes attached to each lane (opened via the 📝 button)
-        //  projects     — structured project lists attached to each lane
-        //  habitChecks  — keyed by "YYYY-MM-DD", then habit id → true/false
-        //  diary        — keyed by "YYYY-MM-DD" → freeform text for the diary column
-        //  focus        — keyed by "YYYY-MM-DD" → focus/intention text for that day
-        //  settings     — persistent UI preferences (theme, horizon mode, habit mode, etc.)
+        //  lanes        - the vertical swim-lane columns (title, colour, minimized flag)
+        //  habits       - the daily habit tracker columns (title + unique id)
+        //  items        - every task/milestone/outcome/event placed on the grid
+        //  notes        - rich-text notes attached to each lane (opened via the 📝 button)
+        //  projects     - structured project lists attached to each lane
+        //  habitChecks  - keyed by "YYYY-MM-DD", then habit id - true/false
+        //  diary        - keyed by "YYYY-MM-DD" - freeform text for the diary column
+        //  focus        - keyed by "YYYY-MM-DD" - focus/intention text for that day
+        //  settings     - persistent UI preferences (theme, horizon mode, habit mode, etc.)
         let state = {
             version: 14,
             lanes: [{ id: 'l_1', title: 'Company', minimized: false, color: '#4F8EF7' }, { id: 'l_2', title: 'Home', minimized: false, color: '#8B5CF6' }, { id: 'l_3', title: 'Admin', minimized: false, color: '#10B981' }],
@@ -759,7 +759,7 @@
         };
 
         // ─── UI STATE ────────────────────────────────────────────────────────────
-        // Volatile UI-only state — never saved to storage.
+        // Volatile UI-only state - never saved to storage.
         // Tracks which drawer is open and which note/project tab is selected.
         let uiState = {
             isNotesOpen: false, activeLaneNotes: null, activeNoteId: null,
@@ -772,11 +772,11 @@
         let currentUiToday = Utils.todayStr;
 
         // ─── VIRTUAL SCROLL BOOKKEEPING ──────────────────────────────────────────
-        // dayMap:          Maps "YYYY-MM-DD" → the live DOM element for that row.
+        // dayMap:          Maps "YYYY-MM-DD" - the live DOM element for that row.
         //                  Used to patch individual cells without rebuilding the whole grid.
         // renderStartDate: The earliest date currently in the DOM.
         // renderEndDate:   The latest date currently in the DOM.
-        // isVirtualizing:  Lock flag — prevents the IntersectionObserver from triggering
+        // isVirtualizing:  Lock flag - prevents the IntersectionObserver from triggering
         //                  a second load batch while one is already in progress.
         const dayMap = new Map();
         let renderStartDate = null;
@@ -786,7 +786,7 @@
         // ─── DOM ─────────────────────────────────────────────────────────────────
         // Named getters for the key structural DOM elements.
         // Using getters (not cached variables) means each access does a fresh getElementById
-        // lookup — safe because elements are sometimes destroyed and recreated during
+        // lookup - safe because elements are sometimes destroyed and recreated during
         // hardRebuild(). Never hold a reference to these across a rebuild.
         const DOM = {
             get container() { return document.getElementById('journal-container'); },
@@ -828,7 +828,7 @@
         // How it works:
         //   1. Render.init() calls EventBus.on('someEvent', handler) to register listeners.
         //   2. Actions call EventBus.emit('someEvent', payload) after mutating State.
-        //   3. The bus calls every registered handler — Render reacts without Actions needing
+        //   3. The bus calls every registered handler - Render reacts without Actions needing
         //      to know anything about the DOM.
         //
         // clear() is called at the start of hardRebuild() to flush stale listeners before
@@ -843,18 +843,18 @@
 
         // ─── UNDO ─────────────────────────────────────────────────────────────────
         // Snapshot-based undo. Before any destructive action, snap() deep-clones the
-        // entire State object and pushes it onto the stack (max 20 entries — the oldest
+        // entire State object and pushes it onto the stack (max 20 entries - the oldest
         // is dropped when the stack fills up to keep memory bounded).
         //
         // perform() pops the last snapshot, replaces the live State with it, saves to
-        // storage, and triggers a full DOM rebuild — effectively rolling the app back in time.
+        // storage, and triggers a full DOM rebuild - effectively rolling the app back in time.
         //
         // showSystemToast() briefly displays a notification strip at the top of the screen
         // so the user can see what was undone.
         let undoTimer;
         const Undo = {
             stack: [], max: 20,
-            // INPUT: label — human-readable name of the action being snapshotted (e.g. 'Add Lane')
+            // INPUT: label - human-readable name of the action being snapshotted (e.g. 'Add Lane')
             // ALGO:  deep-clone State via JSON round-trip (cheap and reliable for plain objects)
             // OUTPUT: new entry pushed onto stack; oldest entry trimmed if over limit
             snap(label = 'Action') {
@@ -889,7 +889,7 @@
         // hydrate() merges loaded data into State, handling the legacy format where habits
         // were stored as plain strings rather than objects, and filtering out corrupted items.
         //
-        // save() writes the full state blob — every mutation calls debouncedSave() which
+        // save() writes the full state blob - every mutation calls debouncedSave() which
         // batches rapid changes into a single write 300ms after the last call.
         const Store = {
             useIDB: false, db: null,
@@ -919,10 +919,10 @@
             loadFallback() {
                 try { const raw = localStorage.getItem(Config.fallbackKey); if (raw) this.hydrate(JSON.parse(raw)); } catch(e) { console.error("Fallback load failed."); }
             },
-            // INPUT: data — a raw JSON object from IndexedDB or localStorage
+            // INPUT: data - a raw JSON object from IndexedDB or localStorage
             // ALGO:  Merges loaded data into the live State object, handling the legacy
             //        format where habits were stored as plain strings (["Workout", ...])
-            //        rather than objects ({id, title}). The if-branch converts old → new
+            //        rather than objects ({id, title}). The if-branch converts old - new
             //        and remaps habitChecks keys from numeric index to the new id format.
             //        Items are filtered to discard any with missing required fields.
             // OUTPUT: live `state` is populated; ready for Render to consume
@@ -966,7 +966,7 @@
 
         // ─── DEBOUNCED SAVE ───────────────────────────────────────────────────────
         // Every keystroke in a text input would trigger a storage write if we saved
-        // immediately. Instead we reset a 300ms timer on each call — only when typing
+        // immediately. Instead we reset a 300ms timer on each call - only when typing
         // pauses for 300ms does the actual write fire.
         let saveTimer;
         const debouncedSave = () => { clearTimeout(saveTimer); saveTimer = setTimeout(() => Store.save(), 300); };
@@ -994,9 +994,9 @@
         // This single-write-path makes it easy to reason about what can change and when.
         //
         // Pattern: most methods call this.mutate(fn, event, payload)
-        //   fn      — a function that performs the actual State mutation
-        //   event   — the EventBus event name that Render listens to
-        //   payload — optional data passed to the Render handler (e.g. which date changed)
+        //   fn      - a function that performs the actual State mutation
+        //   event   - the EventBus event name that Render listens to
+        //   payload - optional data passed to the Render handler (e.g. which date changed)
         const Actions = {
             mutate(fn, ev = 'stateChanged', payload = null) { fn(); debouncedSave(); EventBus.emit(ev, payload); },
             toggleSetting(key, val) { this.mutate(() => { state.settings[key] = val; }, 'settingsChanged'); },
@@ -1298,26 +1298,26 @@
         };
 
         // ─── RENDER ───────────────────────────────────────────────────────────────
-        // Turns State into visible HTML. Render never mutates State — it only reads it.
+        // Turns State into visible HTML. Render never mutates State - it only reads it.
         // Methods are called either directly (init, hardRebuild) or via EventBus listeners
         // that Actions fire after each mutation.
         //
         // Sub-methods and what they own:
-        //   init()               — registers all EventBus listeners; called once on startup
-        //   hardRebuild()        — tears down and rebuilds the full DOM (structural changes)
-        //   gridCSS()            — writes a <style> tag with the CSS Grid column template
-        //   header()             — renders the sticky top header row
-        //   horizon()            — renders the collapsible Horizon panel shell
-        //   horizonData()        — fills the Horizon panel with milestone/outcome/event data
-        //   buildDayBlock()      — creates a single day-row DOM element
-        //   trackContent()       — fills the item cells inside a day-row for a specific date
-        //   itemHTML()           — returns the inner HTML for a single task/milestone/event
-        //   habitStats()         — updates the streak/total count badges above each habit column
-        //   updateDayToggles()   — shows/hides row collapse arrow; updates countdown labels
-        //   updateProgress()     — fills the thin progress bar on each day's date label
-        //   notesDrawerUI()      — renders the full notes side drawer
-        //   projectsDrawerUI()   — renders the full projects side drawer
-        //   applyScrollFilter()  — shows/hides Horizon entries based on scroll position
+        //   init()               - registers all EventBus listeners; called once on startup
+        //   hardRebuild()        - tears down and rebuilds the full DOM (structural changes)
+        //   gridCSS()            - writes a <style> tag with the CSS Grid column template
+        //   header()             - renders the sticky top header row
+        //   horizon()            - renders the collapsible Horizon panel shell
+        //   horizonData()        - fills the Horizon panel with milestone/outcome/event data
+        //   buildDayBlock()      - creates a single day-row DOM element
+        //   trackContent()       - fills the item cells inside a day-row for a specific date
+        //   itemHTML()           - returns the inner HTML for a single task/milestone/event
+        //   habitStats()         - updates the streak/total count badges above each habit column
+        //   updateDayToggles()   - shows/hides row collapse arrow; updates countdown labels
+        //   updateProgress()     - fills the thin progress bar on each day's date label
+        //   notesDrawerUI()      - renders the full notes side drawer
+        //   projectsDrawerUI()   - renders the full projects side drawer
+        //   applyScrollFilter()  - shows/hides Horizon entries based on scroll position
         const Render = {
             init() {
                 EventBus.clear();
@@ -1932,7 +1932,7 @@
 
                     // Streak: walk consecutive calendar days backward from today.
                     // Previously iterated Object.keys(habitChecks) which only has keys for
-                    // days where at least one habit was touched — gap days had no key, so the
+                    // days where at least one habit was touched - gap days had no key, so the
                     // loop silently skipped them and inflated the streak count.
                     let streakCount = 0;
                     const checkDate = new Date(Utils.today);
@@ -2003,7 +2003,7 @@
         //   - loadForward() / loadBackward() add 30 more rows on the relevant side, then
         //     cleanupTop() / cleanupBottom() prune rows from the opposite side to stay within
         //     Config.maxRenderedDays. Page scroll position is corrected so the user doesn't jump.
-        //   - seekToDate() handles "Today" button and Horizon click-throughs — if the target
+        //   - seekToDate() handles "Today" button and Horizon click-throughs - if the target
         //     date is already in the DOM it scrolls to it; otherwise it rebuilds the window
         //     centred on that date.
         //   - isVirtualizing lock prevents the observer from firing a second batch while one
@@ -2102,16 +2102,16 @@
 
         // ─── DRAGDROP ─────────────────────────────────────────────────────────────
         // Wraps the SortableJS library (loaded via CDN) to enable drag-and-drop reordering
-        // of items across any track on any day — including the Horizon overdue bins.
+        // of items across any track on any day - including the Horizon overdue bins.
         //
         // Each track element gets its own Sortable instance, stored on track._sortable so
         // it can be destroyed before a trackContent() refresh prevents double-initialisation.
         //
-        // The drag handle is the coloured type-badge square — users grab it to move items.
+        // The drag handle is the coloured type-badge square - users grab it to move items.
         // The 'group: matrix' setting allows items to move between different Sortable instances
         // (i.e. across lanes and across day rows), not just reorder within one list.
         const DragDrop = {
-            // INPUT: trackEl — a .track DOM element to enable drag-drop on
+            // INPUT: trackEl - a .track DOM element to enable drag-drop on
             // ALGO:  Only creates a new Sortable if one doesn't already exist on the element.
             //        onEnd fires after a successful drop: finds the destination day-row and
             //        calls Actions.reorderTrack() to update State (which re-renders the cell).
@@ -2198,7 +2198,7 @@
         //
         // Routing works via `data-action` attributes:
         //   HTML:       <div data-action="addLane">+</div>
-        //   JS picks up: btn.dataset.action === 'addLane' → calls Actions.addLane()
+        //   JS picks up: btn.dataset.action === 'addLane' - calls Actions.addLane()
         //
         // Also handles: input changes, context-menu (right-click to complete),
         //               double-tap to complete on mobile, keyboard shortcuts (Ctrl+Z undo,
@@ -2428,17 +2428,17 @@
         };
 
         // ─── BOOTSTRAP ────────────────────────────────────────────────────────────
-        // App entry point — called once via App.init() at the bottom of the script.
+        // App entry point - called once via App.init() at the bottom of the script.
         // Startup sequence:
-        //   1. Store.init()         — opens IndexedDB
-        //   2. Store.load()         — reads saved state; falls back to localStorage
-        //   3. applySettings()      — applies the loaded theme class to <body>
-        //   4. Render.init()        — builds the header, horizon shell, registers EventBus listeners
-        //   5. VirtualScroll.init() — sets up IntersectionObserver, renders first 60 day-rows
-        //   6. Search.init()        — wires Ctrl+K search overlay
-        //   7. Events.bind()        — attaches all global DOM event listeners
-        //   8. Onboarding check     — shows tutorial overlay for first-time users
-        //   9. Scroll to today      — smooth-scrolls to the today row on load
+        //   1. Store.init()         - opens IndexedDB
+        //   2. Store.load()         - reads saved state; falls back to localStorage
+        //   3. applySettings()      - applies the loaded theme class to <body>
+        //   4. Render.init()        - builds the header, horizon shell, registers EventBus listeners
+        //   5. VirtualScroll.init() - sets up IntersectionObserver, renders first 60 day-rows
+        //   6. Search.init()        - wires Ctrl+K search overlay
+        //   7. Events.bind()        - attaches all global DOM event listeners
+        //   8. Onboarding check     - shows tutorial overlay for first-time users
+        //   9. Scroll to today      - smooth-scrolls to the today row on load
         async function bootstrap() {
             try { await Store.init(); await Store.load(); } catch(e) { console.error("Boot Failed", e); }
             applySettings(); Render.init(); VirtualScroll.init(); Search.init(); Events.bind();
