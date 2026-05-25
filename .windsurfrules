@@ -6,6 +6,30 @@ Single-file HTML/CSS/JS app (`Swimlane_App.html`). No build step, no npm, no ser
 All JavaScript is one IIFE inside a `<script>` tag. State is in IndexedDB.
 See CLAUDE.md for full architecture notes.
 
+## Testing workflow — do this before every commit
+
+**Before committing any change to `Swimlane_App.html`:**
+
+1. Quick syntax check (instant, no browser):
+```powershell
+$html = Get-Content Swimlane_App.html -Raw -Encoding UTF8
+$js = $html.Substring($html.IndexOf('<script>') + 8, $html.LastIndexOf('</script>') - $html.IndexOf('<script>') - 8)
+[System.IO.File]::WriteAllText("extracted.js", $js, [System.Text.Encoding]::UTF8)
+node --check extracted.js; Remove-Item extracted.js
+```
+
+2. Full smoke suite (7 automated browser tests):
+```
+node tests/smoke.js
+```
+
+Exit 0 = all pass. Exit 1 = see output for which test failed and why.
+Screenshots saved to `tests/screenshots/` for visual verification.
+
+The git pre-commit hook (`tools/pre-commit`, installed via `tools/install-hooks.ps1`)
+runs `node tests/smoke.js` automatically on every commit and blocks if any test fails.
+Do not use `--no-verify` unless the failure is a known fluke and you can explain why.
+
 ## When to run the browser-check tool
 
 Run `node tools/browser-check.js` whenever:

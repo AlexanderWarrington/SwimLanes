@@ -1,0 +1,21 @@
+#!/bin/sh
+# Git pre-commit hook — runs smoke tests before every commit.
+# Blocks the commit if any test fails.
+#
+# Install once with:   pwsh tools/install-hooks.ps1
+# Run manually with:   node tests/smoke.js
+
+echo ""
+echo "Running smoke tests before commit..."
+node tests/smoke.js
+STATUS=$?
+
+if [ $STATUS -ne 0 ]; then
+    echo ""
+    echo "Commit blocked: smoke tests failed."
+    echo "Fix the failures above, then commit again."
+    echo "To skip in an emergency: git commit --no-verify"
+    exit 1
+fi
+
+exit 0
