@@ -294,6 +294,9 @@
         .type-outcome .type-badge { background: var(--lc); color: #fff; }
         .type-outcome .text-input { font-size: 32px; font-weight: 700; color: var(--lc); text-decoration: underline; text-decoration-thickness: 2px; }
         .type-outcome .countdown { display: inline-block; }
+        .type-event .type-badge { background: #e0e7ff; color: #1e40af; border: 1px solid #bfdbfe; }
+        .type-event .text-input { font-style: italic; color: #1e40af; }
+        .type-event .countdown { display: inline-block; }
 
         #top-sentinel { height: 1px; width: 100%; }
         #scroll-sentinel { height: 20px; width: 100%; }
@@ -565,7 +568,7 @@
             // shown on the coloured square in the UI. Pressing the badge rotates T→M→O→T.
             // ⚠️  BUG (V1): 'type-event' (E) is missing here — it exists in the latest
             //     version but was never added to V1. Fix: add { id:'type-event', label:'E' }.
-            itemTypes: [{ id: 'type-task', label: 'T' }, { id: 'type-milestone', label: 'M' }, { id: 'type-outcome', label: 'O' }],
+            itemTypes: [{ id: 'type-task', label: 'T' }, { id: 'type-milestone', label: 'M' }, { id: 'type-outcome', label: 'O' }, { id: 'type-event', label: 'E' }],
 
             // Eight accent colours that new lanes get assigned in order.
             // Users can also manually rotate a lane's colour by clicking its colour dot.
@@ -588,35 +591,93 @@
             maxRenderedDays: 120
         };
 
+        // ─── UTILS ───────────────────────────────────────────────────────────────
+        // Stateless helper toolkit used by every other module.
+        // Nothing in here reads or writes State — it is pure utility.
         const Utils = {
+            // Generates a collision-safe unique ID string.
+            // Used whenever a new lane, habit, item or note is created.
+            // Prefers the browser's built-in crypto API; falls back to a timestamp+random
+            // combo if crypto isn't available (very old browsers / some test runners).
             uuid: () => { try { return crypto.randomUUID(); } catch { return 'id_' + Date.now().toString(36) + Math.random().toString(36).substring(2, 15); } },
+
+            // Turns a "YYYY-MM-DD" date string into a JavaScript Date set to midnight local time.
+            // The 'T00:00:00' suffix forces local timezone instead of UTC, preventing off-by-one
+            // day errors around midnight in non-UTC timezones.
             parseDate: (s) => new Date(s + 'T00:00:00'),
+
+            // Turns a Date object back into a "YYYY-MM-DD" string using the local timezone.
+            // padStart ensures single-digit months/days get a leading zero (e.g. "2025-01-05").
             toLocalISO: (d) => { const y = d.getFullYear(); const m = String(d.getMonth() + 1).padStart(2, '0'); const day = String(d.getDate()).padStart(2, '0'); return `${y}-${m}-${day}`; },
+
+            // Returns today's Date object with the clock zeroed to midnight.
+            // The setHours(0,0,0,0) call is critical — without it, comparisons like
+            // "d < today" would be wrong for earlier hours of the current day.
             get today() { const d = new Date(); d.setHours(0,0,0,0); return d; },
+
+            // Today as a "YYYY-MM-DD" string, ready for direct comparison against stored dateStr values.
             get todayStr() { return Utils.toLocalISO(this.today); },
+
+            // Returns the number of whole days between a stored date and today.
+            // Positive = future, 0 = today, negative = past. Divide by 86,400,000 (ms per day).
+            // Used by the Horizon panel to display countdown labels like "5d" or "Past".
             getDiffDays: (dateStr) => { return Math.round((Utils.parseDate(dateStr) - Utils.today) / 86400000); },
+
+            // Escapes HTML special characters in user-provided strings before injecting them
+            // into innerHTML. Prevents XSS — e.g. a task named "<script>alert(1)</script>"
+            // renders as visible text rather than executing as code.
             escape: (str) => String(str || '').replace(/[&<>"']/g, match => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[match])
         };
 
+        // ─── STATE ───────────────────────────────────────────────────────────────
+        // The single source of truth for the entire app.
+        // Every visible element on screen is derived from this object.
+        // It is saved to the Python backend on every change and reloaded on startup.
+        //
+        //  lanes        — the vertical swim-lane columns (title, colour, minimized flag)
+        //  habits       — the daily habit tracker columns (title + unique id)
+        //  items        — every task/milestone/outcome/event placed on the grid
+        //  notes        — rich-text notes attached to each lane (opened via the 📝 button)
+        //  habitChecks  — keyed by "YYYY-MM-DD", then habit id → true/false
+        //  diary        — keyed by "YYYY-MM-DD" → freeform text for the diary column
+        //  settings     — persistent UI preferences (theme, horizon mode, habit mode, etc.)
         let state = {
             version: 10,
             lanes: [{ id: 'l_1', title: 'Company', minimized: false, color: '#4F8EF7' }, { id: 'l_2', title: 'Home', minimized: false, color: '#8B5CF6' }, { id: 'l_3', title: 'Admin', minimized: false, color: '#10B981' }],
             habits: [ { id: 'h_1', title: 'Workout' }, { id: 'h_2', title: 'Read' }, { id: 'h_3', title: 'Diet' }, { id: 'h_4', title: 'Sleep' } ],
             items: [],
             notes: [],
-            habitChecks: {}, 
-            diary: {},       
+            habitChecks: {},
+            diary: {},
             settings: { theme: Config.defaultTheme, horizonMode: 'all', habitMode: 'streak', showAchievements: false, showHorizon: false }
         };
 
+        // ─── UI STATE ────────────────────────────────────────────────────────────
+        // Volatile UI-only state — never saved to the server.
+        // Tracks which notes drawer is open and which note tab is selected.
         let uiState = { isNotesOpen: false, activeLaneNotes: null, activeNoteId: null };
+
+        // Cached "today" string so the midnight rollover check (in Events.bind) can detect
+        // when the calendar date has changed and re-render the today highlight.
         let currentUiToday = Utils.todayStr;
 
+        // ─── VIRTUAL SCROLL BOOKKEEPING ──────────────────────────────────────────
+        // dayMap:          Maps "YYYY-MM-DD" → the live DOM element for that row.
+        //                  Used to patch individual cells without rebuilding the whole grid.
+        // renderStartDate: The earliest date currently in the DOM.
+        // renderEndDate:   The latest date currently in the DOM.
+        // isVirtualizing:  Lock flag — prevents the IntersectionObserver from triggering
+        //                  a second load batch while one is already in progress.
         const dayMap = new Map();
         let renderStartDate = null;
         let renderEndDate = null;
         let isVirtualizing = false;
 
+        // ─── DOM ─────────────────────────────────────────────────────────────────
+        // Named getters for the key structural DOM elements.
+        // Using getters (not cached variables) means each access does a fresh getElementById
+        // lookup — safe because elements are sometimes destroyed and recreated during
+        // hardRebuild(). Never hold a reference to these across a rebuild.
         const DOM = {
             get header() { return document.getElementById('journal-header'); },
             get horizon() { return document.getElementById('journal-horizon'); },
@@ -639,6 +700,17 @@
             get toast() { return document.getElementById('undo-toast'); }
         };
 
+        // ─── EVENTBUS ─────────────────────────────────────────────────────────────
+        // A lightweight Publish / Subscribe message bus that decouples Actions from Render.
+        //
+        // How it works:
+        //   1. Render.init() calls EventBus.on('someEvent', handler) to register listeners.
+        //   2. Actions call EventBus.emit('someEvent', payload) after mutating State.
+        //   3. The bus calls every registered handler — Render reacts without Actions needing
+        //      to know anything about the DOM.
+        //
+        // clear() is called at the start of hardRebuild() to flush stale listeners before
+        // Render.init() re-registers them, preventing duplicate handler accumulation.
         const EventBus = {
             listeners: {},
             on(event, cb) { if(!this.listeners[event]) this.listeners[event] = []; this.listeners[event].push(cb); },
@@ -647,13 +719,29 @@
             emit(event, data) { if(this.listeners[event]) this.listeners[event].forEach(cb => cb(data)); }
         };
 
+        // ─── UNDO ─────────────────────────────────────────────────────────────────
+        // Snapshot-based undo. Before any destructive action, snap() deep-clones the
+        // entire State object and pushes it onto the stack (max 20 entries — the oldest
+        // is dropped when the stack fills up to keep memory bounded).
+        //
+        // perform() pops the last snapshot, replaces the live State with it, saves to the
+        // server, and triggers a full DOM rebuild — effectively rolling the app back in time.
+        //
+        // showToast() briefly displays a notification strip at the top of the screen so
+        // the user can see what was undone.
         let undoTimer;
         const Undo = {
             stack: [], max: 20,
+            // INPUT: label — human-readable name of the action being snapshotted (e.g. 'Add Lane')
+            // ALGO:  deep-clone State via JSON round-trip (cheap and reliable for plain objects)
+            // OUTPUT: new entry pushed onto stack; oldest entry trimmed if over limit
             snap(label = 'Action') {
                 this.stack.push({ label, stateData: JSON.parse(JSON.stringify(state)) });
                 if(this.stack.length > this.max) this.stack.shift();
             },
+            // INPUT: none
+            // ALGO:  pop last snapshot, overwrite live State, persist, rebuild UI
+            // OUTPUT: app visually rolls back to the previous state; toast shown
             perform() {
                 if(!this.stack.length) return;
                 const snap = this.stack.pop();
@@ -668,6 +756,15 @@
             }
         };
 
+        // ─── STORE ────────────────────────────────────────────────────────────────
+        // Handles all persistence. V1 uses a Python backend server as primary storage.
+        // On startup, Store tries to load from that server. If the server returns empty
+        // data, it checks for legacy client-side data (IndexedDB / localStorage) left over
+        // from an older version, migrates it to the server, and then clears the local copy.
+        //
+        // Save path: every mutation calls debouncedSave() → Store.save() → POST /api/state
+        // Load path: bootstrap → Store.init() (opens IndexedDB for migration check) →
+        //            Store.load() (fetches /api/state, falls back to legacy data if server fails)
         const Store = {
             useIDB: false, db: null,
             init() {
@@ -748,16 +845,24 @@
                     console.warn("Could not clear legacy local storage:", e);
                 }
             },
+            // INPUT: data — a raw JSON object from the server or local storage
+            // ALGO:  Merges loaded data into the live State object, handling two legacy
+            //        data formats. Old format stored habits as plain strings (["Workout", ...]);
+            //        new format stores objects ({id, title}). The if-branch converts old → new.
+            //        Items are filtered to discard any with missing required fields (defensive).
+            // OUTPUT: live `state` is populated ready for Render to consume
             hydrate(data) {
                 if(!data) return;
                 state.lanes = data.lanes || state.lanes;
                 state.lanes.forEach((l, i) => { if(!l.color) l.color = Config.PAL[i % Config.PAL.length]; });
                 state.diary = data.diary || {};
-                state.notes = data.notes || []; 
+                state.notes = data.notes || [];
                 state.settings = { ...state.settings, ...(data.settings || {}) };
                 state.items = (data.items || []).filter(i => i.id && i.dateStr && i.laneId && i.type);
-                
+
                 if (data.habits && typeof data.habits[0] === 'string') {
+                    // Legacy format: habits were stored as plain strings, not objects.
+                    // Convert and remap habitChecks keys from numeric index to the new id format.
                     state.habits = data.habits.map((h, i) => ({ id: 'h_' + i, title: h }));
                     Object.keys(data.habitChecks || {}).forEach(date => {
                         const newChecks = {}; Object.keys(data.habitChecks[date]).forEach(oldIdx => { newChecks['h_' + oldIdx] = data.habitChecks[date][oldIdx]; });
@@ -789,15 +894,34 @@
             }
         };
 
+        // ─── DEBOUNCED SAVE ───────────────────────────────────────────────────────
+        // Every keystroke in a text input would trigger a network request if we saved
+        // immediately. Instead we reset a 300ms timer on each call — only when typing
+        // pauses for 300ms does the actual POST /api/state fire.
         let saveTimer;
         const debouncedSave = () => { clearTimeout(saveTimer); saveTimer = setTimeout(() => Store.save(), 300); };
 
+        // ─── APPLY SETTINGS ───────────────────────────────────────────────────────
+        // Syncs the <body> element's CSS class with the current settings.
+        // Changing body's class switches the CSS background pattern (dotted vs lined paper)
+        // and toggles the "show past items" visibility rule.
+        // Called on startup and whenever settings change.
         function applySettings() {
             document.body.className = `theme-${state.settings.theme}`;
             document.body.classList.toggle('show-achievements', state.settings.showAchievements);
         }
 
+        // ─── ACTIONS ──────────────────────────────────────────────────────────────
+        // The ONLY place in the app that modifies State.
+        // Every user gesture eventually calls an Action method, never mutating State directly.
+        // This single-write-path makes it easy to reason about what can change and when.
+        //
+        // Pattern: most methods call this.mutate(fn, event, payload)
+        //   fn      — a function that performs the actual State mutation
+        //   event   — the EventBus event name that Render listens to
+        //   payload — optional data passed to the Render handler (e.g. which date changed)
         const Actions = {
+            // Core mutation wrapper: runs the mutation, queues a debounced save, and notifies Render.
             mutate(fn, ev = 'stateChanged', payload = null) { fn(); debouncedSave(); EventBus.emit(ev, payload); },
             toggleSetting(key, val) { this.mutate(() => { state.settings[key] = val; }, 'settingsChanged'); },
             toggleAchievement() { this.mutate(() => { state.settings.showAchievements = !state.settings.showAchievements; applySettings(); }, 'structureChanged'); },
@@ -842,9 +966,14 @@
             
             updateDiary(d, val) { this.mutate(() => { if(val.trim()==='') delete state.diary[d]; else state.diary[d] = val; }, 'silentSave'); },
 
+            // INPUT: dateStr — the row date, laneId — which swim-lane column
+            // ALGO:  Creates a new blank task item in State, fires itemsChanged so Render
+            //        redraws that day's track, then focuses the new text input after a short
+            //        delay (the DOM needs one tick to render before focus works).
+            // OUTPUT: new item visible on screen with cursor inside the text field
             addItem(dateStr, laneId) {
                 const id = Utils.uuid();
-                if(document.activeElement) document.activeElement.blur(); 
+                if(document.activeElement) document.activeElement.blur();
                 this.mutate(() => { state.items.push({ id, dateStr, laneId, type: 'type-task', text: '', isDone: false }); }, 'itemsChanged', { dateStr });
                 setTimeout(() => { const i = document.querySelector(`.item[data-id="${id}"] .text-input`); if(i) i.focus(); }, 10);
             },
@@ -858,20 +987,32 @@
                 Undo.snap('Toggle Done');
                 this.mutate(() => { const i = state.items.find(x => x.id === id); if(i) i.isDone = !i.isDone; }, 'itemToggled', { id }); 
             },
-            cycleType(id) { 
+            // INPUT: id — the item whose type badge was clicked
+            // ALGO:  Finds the item's current type in Config.itemTypes, moves to the next
+            //        entry in the array (wrapping around at the end). e.g. T → M → O → T
+            //        ⚠️  V1 BUG: 'type-event' (E) is missing from Config.itemTypes, so the
+            //        cycle is T → M → O → T. Adding E would make it T → M → O → E → T.
+            // OUTPUT: badge letter on the item updates; horizon data refreshes
+            cycleType(id) {
                 const item = state.items.find(x => x.id === id);
                 if (item) {
                     Undo.snap('Cycle Type');
-                    this.mutate(() => { 
-                        let idx = Config.itemTypes.findIndex(t => t.id === item.type); 
-                        item.type = Config.itemTypes[(idx + 1) % Config.itemTypes.length].id; 
-                    }, 'itemsChanged', { dateStr: item.dateStr }); 
+                    this.mutate(() => {
+                        let idx = Config.itemTypes.findIndex(t => t.id === item.type);
+                        item.type = Config.itemTypes[(idx + 1) % Config.itemTypes.length].id;
+                    }, 'itemsChanged', { dateStr: item.dateStr });
                 }
             },
             deleteItem(id) { 
                 const item = state.items.find(x => x.id === id);
                 if (item) { Undo.snap('Delete Task'); this.mutate(() => { state.items = state.items.filter(x => x.id !== id); }, 'itemsChanged', { dateStr: item.dateStr }); }
             },
+            // INPUT: id — dragged item, newDate/newLane — drop target, domIds — ordered list
+            //        of all item IDs currently visible in the drop target's track (from the DOM)
+            // ALGO:  Updates the dragged item's date + lane, then re-sorts the State items array
+            //        to match the visual order the user left them in after the drag.
+            //        The DOM order (domIds) is the authoritative sort source here.
+            // OUTPUT: State reflects the new position; both source and destination tracks re-render
             reorderTrack(id, newDate, newLane, domIds) {
                 const item = state.items.find(x => x.id === id);
                 if (!item) return;
@@ -934,6 +1075,28 @@
             importData() { DOM.importUpload.click(); }
         };
 
+        // ─── RENDER ───────────────────────────────────────────────────────────────
+        // Turns State into visible HTML. Render never mutates State — it only reads it.
+        // Methods are called either directly (init, hardRebuild) or via EventBus listeners
+        // that Actions fire after each mutation.
+        //
+        // Sub-methods and what they own:
+        //   init()            — registers all EventBus listeners; called once on startup
+        //   hardRebuild()     — tears down and rebuilds the full DOM (used after structural changes)
+        //   gridCSS()         — writes a <style> tag with the CSS Grid column template
+        //   header()          — renders the sticky top header row (controls + lane headers + habits)
+        //   horizon()         — renders the collapsible Horizon panel shell
+        //   horizonData()     — fills the Horizon panel with current milestone/outcome/event data
+        //   syncHorizonHeight — snaps the Horizon panel height to the grid baseline
+        //   buildDayBlock()   — creates a single day-row DOM element (but doesn't add items yet)
+        //   trackContent()    — fills the item cells inside a day-row for a specific date
+        //   itemHTML()        — returns the inner HTML for a single task/milestone/event element
+        //   habitStats()      — updates the streak/total count badges above each habit column
+        //   updateDayToggles()— shows/hides the row collapse arrow; updates countdown labels
+        //   updateProgress()  — fills the thin progress bar on each day's date label
+        //   notesDrawerUI()   — renders the full notes side drawer
+        //   notesDrawerTabsOnly() — re-renders only the tab strip (faster than full drawer)
+        //   applyScrollFilter()   — shows/hides Horizon entries based on scroll position
         const Render = {
             init() {
                 EventBus.clear();
@@ -972,6 +1135,12 @@
                 BusWrap('notesTabsChanged', () => { if(uiState.isNotesOpen) this.notesDrawerTabsOnly(); });
             },
 
+            // INPUT: none (reads State and live focus)
+            // ALGO:  Saves which element had keyboard focus, wipes the body DOM,
+            //        regenerates all structural elements, scrolls back to today,
+            //        then restores focus to the previously active element.
+            // OUTPUT: entire journal re-rendered from scratch; called after lane add/delete,
+            //         minimize, habit changes — any change that alters the column structure.
             hardRebuild() {
                 const activeId = document.activeElement?.dataset?.id;
                 DOM.body.innerHTML = ''; dayMap.clear();
@@ -979,6 +1148,12 @@
                 VirtualScroll.seekToDate(Utils.todayStr);
             },
 
+            // INPUT: reads State.lanes and State.habits
+            // ALGO:  Builds a CSS grid-template-columns string that matches the current
+            //        lane + habit column count, then injects it as an inline <style> tag.
+            //        Lane-specific colour CSS variables (--lc) are also set here so every
+            //        .sl-<id> element picks up its lane colour from CSS.
+            // OUTPUT: dynamic-grid-style <style> tag updated; all grid rows repaint.
             gridCSS() {
                 const laneWidth = state.lanes.length > 3 ? 'minmax(220px, 1fr)' : 'minmax(140px, 1fr)';
                 const laneStr = state.lanes.map(sl => sl.minimized ? 'var(--grid-size)' : laneWidth).join(' ');
@@ -1119,6 +1294,13 @@
                 if(state.settings.showHorizon) { DOM.horizon.classList.add('is-expanded'); this.horizonData(); }
             },
 
+            // INPUT: reads State.items filtered to outcomes/milestones (and events in fixed version)
+            // ALGO:  For each lane, splits items into "overdue" (past + undone) and "upcoming"
+            //        (future or done+showAchievements). Overdue items appear in a red bin at
+            //        the top; upcoming items are sorted by date and listed with a countdown.
+            //        ⚠️  V1 BUG: the filter below only checks type-outcome and type-milestone —
+            //        type-event items are silently excluded. Fix: add `|| i.type === 'type-event'`.
+            // OUTPUT: horizon panel populated with two sections per lane
             horizonData() {
                 if(!state.settings.showHorizon) return;
                 const sysToday = Utils.todayStr;
@@ -1147,7 +1329,7 @@
                     if(container) {
                         container.innerHTML = ''; 
                         const ul = document.createElement('ul'); ul.className = 'index-list';
-                        const hzItems = state.items.filter(i => { return i.laneId === lane.id && (i.type === 'type-outcome' || i.type === 'type-milestone') && (i.dateStr >= sysToday || i.isDone); });
+                        const hzItems = state.items.filter(i => { return i.laneId === lane.id && (i.type === 'type-outcome' || i.type === 'type-milestone' || i.type === 'type-event') && (i.dateStr >= sysToday || i.isDone); });
                         const mapped = hzItems.map(item => { if (!state.settings.showAchievements && item.isDone) return null; return { ...item, diffDays: Utils.getDiffDays(item.dateStr) }; }).filter(i => i !== null).sort((a, b) => a.diffDays - b.diffDays);
 
                         mapped.forEach(data => {
@@ -1172,6 +1354,13 @@
                 hz.style.height = (Math.ceil(hz.getBoundingClientRect().height / gridSize) * gridSize) + 'px';
             },
 
+            // INPUT: dateStr — "YYYY-MM-DD" string for the row to create
+            // ALGO:  Builds the full HTML for one day-row: date label, empty track divs per lane,
+            //        habit checkboxes, diary textarea. Registers it in dayMap but does NOT yet
+            //        populate the track content — trackContent() is called separately so the
+            //        VirtualScroll batch can insert many rows into the DOM at once before filling
+            //        them (fewer reflows).
+            // OUTPUT: a detached DOM element; caller appends it to the journal body
             buildDayBlock(dateStr) {
                 const curDate = Utils.parseDate(dateStr); 
                 const dayName = curDate.toLocaleString('default', { weekday: 'short' });
@@ -1209,6 +1398,13 @@
                 dayMap.set(dateStr, dayBlock); return dayBlock;
             },
 
+            // INPUT: dateStr — which day's tracks to refresh
+            // ALGO:  Looks up the live DOM row for that date via dayMap. For each lane,
+            //        destroys any existing SortableJS instance (to avoid double-init),
+            //        clears the track's innerHTML, re-renders all items for that date+lane,
+            //        then re-initialises drag-drop. Skips tracks that contain the focused
+            //        element to avoid disrupting in-progress typing.
+            // OUTPUT: that day's item cells are current with State.items
             trackContent(dateStr) {
                 const dayBlock = dayMap.get(dateStr); if(!dayBlock) return;
                 state.lanes.forEach(lane => {
@@ -1226,6 +1422,12 @@
                 });
             },
 
+            // INPUT: itemData — a single item object from State.items
+            // ALGO:  Finds the badge config (letter label) for the item's type.
+            //        If the item text looks like a URL, renders a ↗ link button.
+            //        Returns an HTML string with: type badge, optional link, text input,
+            //        countdown span (filled by updateDayToggles), and a delete button.
+            // OUTPUT: HTML string injected into an .item element's innerHTML
             itemHTML(itemData) {
                 const typeConfig = Config.itemTypes.find(t => t.id === itemData.type) || Config.itemTypes[0];
                 const isUrl = /^https?:\/\//i.test(itemData.text);
@@ -1239,22 +1441,60 @@
                 `;
             },
 
+            // INPUT: reads State.habits, State.habitChecks, State.settings.habitMode
+            // ALGO:  For each habit, calculates either the total count or the current streak.
+            //
+            //        "Total" mode: counts every day where the habit was checked, ever.
+            //
+            //        "Streak" mode: should count consecutive days ending today, but...
+            //        ⚠️  V1 BUG — this code iterates over Object.keys(habitChecks), which only
+            //        contains dates where at least one habit was interacted with. If the user
+            //        opened the app and checked habits on Mon, Wed, Fri but NOT Tue/Thu, those
+            //        gap days have no key, so the loop skips them silently — inflating the streak.
+            //        The fix (applied in Swimlane_App.html) walks consecutive calendar days
+            //        backward from today, stopping at the first unchecked day, regardless of
+            //        whether a key exists in habitChecks for that date.
+            //
+            // OUTPUT: the stat badge above each habit column header updated with a number
             habitStats() {
                 const sysToday = Utils.todayStr;
                 state.habits.forEach((habit) => {
-                    let count = 0, streakCount = 0;
-                    const allDates = Object.keys(state.habitChecks).filter(d => d <= sysToday).sort().reverse();
-                    for (const d of allDates) {
-                        if (state.habitChecks[d]?.[habit.id]) { count++; streakCount++; } else if(state.settings.habitMode === 'streak') break;
+                    // Total count: sum every day where the habit was checked (any order).
+                    let count = 0;
+                    Object.keys(state.habitChecks).forEach(d => { if (d <= sysToday && state.habitChecks[d]?.[habit.id]) count++; });
+
+                    // Streak count: walk consecutive calendar days backward from today.
+                    // Stops at the first day that is NOT checked, even if habitChecks has no
+                    // key for that date (that was the V1 bug — keys only exist for days where
+                    // at least one habit was touched, so the old loop skipped gap days).
+                    let streakCount = 0;
+                    const checkDate = new Date(Utils.today);
+                    while (true) {
+                        const dateStr = Utils.toLocalISO(checkDate);
+                        if (state.habitChecks[dateStr]?.[habit.id]) {
+                            streakCount++;
+                        } else {
+                            break;
+                        }
+                        checkDate.setDate(checkDate.getDate() - 1);
                     }
+
                     const display = document.getElementById(`stat-${habit.id}`);
                     if(display) display.innerText = state.settings.habitMode === 'total' ? count : streakCount;
                 });
             },
 
+            // INPUT: reads the live DOM (day-blocks and their children)
+            // ALGO:  For each visible day-row:
+            //   1. Counts items across all tracks; shows the collapse arrow (▼) only if >1 item.
+            //   2. Finds every .type-outcome element and writes a countdown "(5d)" / "(Today)" /
+            //      "(Past)" into its .countdown span.
+            //      ⚠️  V1 BUG: only .type-outcome gets a countdown — .type-event is excluded.
+            //      Fix: change selector to '.type-outcome, .type-event'.
+            // OUTPUT: toggle arrows and countdown labels updated in the live DOM
             updateDayToggles() {
                 document.querySelectorAll('.day-block').forEach(block => {
-                    const toggle = block.querySelector('.day-toggle'); 
+                    const toggle = block.querySelector('.day-toggle');
                     let taskCount = 0;
                     block.querySelectorAll('.track').forEach(track => { taskCount += track.children.length; });
                     
@@ -1266,7 +1506,7 @@
                         }
                     }
 
-                    block.querySelectorAll('.type-outcome').forEach(outcome => {
+                    block.querySelectorAll('.type-outcome, .type-event').forEach(outcome => {
                         const d = Utils.getDiffDays(block.dataset.date);
                         const span = outcome.querySelector('.countdown');
                         if(span) span.innerText = d > 0 ? `(${d}d)` : d === 0 ? `(Today)` : `(Past)`;
@@ -1274,6 +1514,11 @@
                 });
             },
 
+            // INPUT: reads dayMap + State.items
+            // ALGO:  For each rendered day-row, calculates the ratio of done/total items
+            //        and sets the width of the thin green progress fill bar proportionally.
+            //        Hides the bar entirely if there are no items that day.
+            // OUTPUT: the small progress indicator on each day's date label is updated
             updateProgress() {
                 dayMap.forEach((block, dateStr) => {
                     const prog = document.getElementById(`dp-${dateStr}`); if(!prog) return;
@@ -1284,6 +1529,12 @@
                 });
             },
 
+            // INPUT: reads State.settings.horizonMode and live scroll position
+            // ALGO:  In 'scroll' mode, hides horizon entries whose day-row is above the
+            //        visible fold (scrolled past). In 'all' mode, shows everything.
+            //        Called on scroll events (debounced via requestAnimationFrame) and after
+            //        any horizonData() rebuild.
+            // OUTPUT: horizon list items toggled visible/hidden based on scroll position
             applyScrollFilter() {
                 if (!state.settings.showHorizon) return;
                 const hh = DOM.header.getBoundingClientRect().height;
@@ -1295,6 +1546,20 @@
             }
         };
 
+        // ─── VIRTUALSCROLL ────────────────────────────────────────────────────────
+        // Keeps memory and paint cost low by only rendering ~120 day-rows at a time.
+        //
+        // How it works:
+        //   - Two invisible sentinel <div>s (top and bottom) sit just outside the rendered range.
+        //   - IntersectionObserver fires whenever either sentinel enters the viewport.
+        //   - loadForward() / loadBackward() add 30 more rows on the relevant side, then
+        //     cleanupTop() / cleanupBottom() prune rows from the opposite side to stay within
+        //     Config.maxRenderedDays. Page scroll position is corrected so the user doesn't jump.
+        //   - seekToDate() handles "Today" button and Horizon click-throughs — if the target
+        //     date is already in the DOM it scrolls to it; otherwise it rebuilds the window
+        //     centred on that date.
+        //   - isVirtualizing lock prevents the observer from firing a second batch while one
+        //     is already being appended to the DOM.
         const VirtualScroll = {
             pendingForward: false, pendingBackward: false,
             init() {
@@ -1369,7 +1634,22 @@
             }
         };
 
+        // ─── DRAGDROP ─────────────────────────────────────────────────────────────
+        // Wraps the SortableJS library (loaded via CDN) to enable drag-and-drop reordering
+        // of items across any track on any day — including the Horizon overdue bins.
+        //
+        // Each track element gets its own Sortable instance, stored on track._sortable so
+        // it can be destroyed before a trackContent() refresh prevents double-initialisation.
+        //
+        // The drag handle is the coloured type-badge square — users grab it to move items.
+        // The 'group: matrix' setting allows items to move between different Sortable instances
+        // (i.e. across lanes and across day rows), not just reorder within one list.
         const DragDrop = {
+            // INPUT: trackEl — a .track DOM element to enable drag-drop on
+            // ALGO:  Only creates a new Sortable if one doesn't already exist on the element.
+            //        onEnd fires after a successful drop: finds the destination day-row, reads
+            //        the current DOM order of items, and calls Actions.reorderTrack to persist.
+            // OUTPUT: the track is drag-drop enabled; State updated on any successful drag
             initFor(trackEl) {
                 if (!trackEl._sortable) {
                     trackEl._sortable = new Sortable(trackEl, {
@@ -1389,7 +1669,17 @@
             }
         };
 
+        // ─── SEARCH ───────────────────────────────────────────────────────────────
+        // Ctrl+K (or Cmd+K on Mac) command palette. Searches task text and diary entries,
+        // shows the top 15 matches sorted by date (newest first), and navigates to the
+        // matching day-row when a result is clicked.
+        // Minimum 2 characters before searching to avoid flooding results with single-letter hits.
         const Search = {
+            // INPUT: none; wires up keyboard and overlay click listeners
+            // ALGO:  Debounces the search input 200ms to avoid searching on every keystroke.
+            //        Ctrl+K toggles the search overlay open/closed; Escape closes it.
+            //        Clicking outside the search modal (on the overlay backdrop) also closes it.
+            // OUTPUT: event listeners registered; Search is ready to use
             init() {
                 let searchTimer;
                 DOM.searchInput.addEventListener('input', (e) => { clearTimeout(searchTimer); searchTimer = setTimeout(() => this.query(e.target.value), 200); });
@@ -1418,10 +1708,25 @@
             }
         };
 
+        // Shorthand alias — used inside Render.init() to keep EventBus.on() calls terse.
         function BusWrap(evt, cb) { EventBus.on(evt, cb); }
 
+        // ─── EVENTS ───────────────────────────────────────────────────────────────
+        // Single global event listener hub using the event-delegation pattern.
+        // Instead of attaching a listener to every button, one listener sits on `document`
+        // and checks what was clicked. This scales to any number of dynamically added items.
+        //
+        // Routing works via `data-action` attributes:
+        //   HTML:       <div data-action="addLane">+</div>
+        //   JS picks up: btn.dataset.action === 'addLane' → calls Actions.addLane()
+        //
+        // Also handles: input changes, context-menu (right-click to complete),
+        //               double-tap to complete on mobile, keyboard shortcuts (Ctrl+Z undo,
+        //               Enter to add next task, Backspace-on-empty to delete),
+        //               paste sanitisation, midnight date-change rollover check.
         const Events = {
             bind() {
+                // Flush any pending debounced save before the tab closes or is hidden.
                 window.addEventListener('beforeunload', () => { clearTimeout(saveTimer); Store.save(); });
                 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') { clearTimeout(saveTimer); Store.save(); } });
 
@@ -1573,6 +1878,19 @@
             }
         };
 
+        // ─── BOOTSTRAP ────────────────────────────────────────────────────────────
+        // App entry point — called once via App.init() at the bottom of the script.
+        // Startup sequence:
+        //   1. Store.init()      — opens IndexedDB (checks for legacy data to migrate)
+        //   2. Store.load()      — fetches saved state from the Python backend; falls back
+        //                          to local legacy data if the server is unreachable
+        //   3. applySettings()   — applies the loaded theme class to <body>
+        //   4. Render.init()     — builds the header, horizon shell, registers EventBus listeners
+        //   5. VirtualScroll.init() — sets up IntersectionObserver, renders first 60 day-rows
+        //   6. Search.init()     — wires Ctrl+K search overlay
+        //   7. Events.bind()     — attaches all global DOM event listeners
+        //   8. Onboarding check  — shows tutorial overlay for first-time users
+        //   9. Scroll to today   — smooth-scrolls to the today row on load
         async function bootstrap() {
             try { await Store.init(); await Store.load(); } catch(e) { console.error("Boot Failed", e); }
             applySettings(); Render.init(); VirtualScroll.init(); Search.init(); Events.bind();
