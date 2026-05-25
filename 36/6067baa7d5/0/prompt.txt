@@ -1,0 +1,17 @@
+review the claude.md cuurently seeing javascript render as test in the html doc please  review C:\Users\PC.windsurf\plans\fix-javascript-syntax-error-a16686.md to see if the planned for windsurfs debugging plan
+
+---
+
+im now getting a empty white screen
+
+---
+
+provide a skill for windsurf and contect to use it - for how you used playwrite to grab console logs ect ect -
+
+---
+
+okay and now for your own learning - how could you didnt catch any of this when you were fixing and PR'ing - what was the bugs high level and what about them made you not see them?
+
+---
+
+this skill is saved for you? right?  and you have updated the claude.md file yes? and a project memory?
