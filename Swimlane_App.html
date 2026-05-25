@@ -1726,11 +1726,26 @@
             habitStats() {
                 const sysToday = Utils.todayStr;
                 state.habits.forEach((habit) => {
-                    let count = 0, streakCount = 0;
-                    const allDates = Object.keys(state.habitChecks).filter(d => d <= sysToday).sort().reverse();
-                    for (const d of allDates) {
-                        if (state.habitChecks[d]?.[habit.id]) { count++; streakCount++; } else if(state.settings.habitMode === 'streak') break;
+                    // Total: count every checked day regardless of gaps.
+                    let count = 0;
+                    Object.keys(state.habitChecks).forEach(d => { if (d <= sysToday && state.habitChecks[d]?.[habit.id]) count++; });
+
+                    // Streak: walk consecutive calendar days backward from today.
+                    // Previously iterated Object.keys(habitChecks) which only has keys for
+                    // days where at least one habit was touched — gap days had no key, so the
+                    // loop silently skipped them and inflated the streak count.
+                    let streakCount = 0;
+                    const checkDate = new Date(Utils.today);
+                    while (true) {
+                        const dateStr = Utils.toLocalISO(checkDate);
+                        if (state.habitChecks[dateStr]?.[habit.id]) {
+                            streakCount++;
+                        } else {
+                            break;
+                        }
+                        checkDate.setDate(checkDate.getDate() - 1);
                     }
+
                     const display = document.getElementById(`stat-${habit.id}`);
                     if(display) display.innerText = state.settings.habitMode === 'total' ? count : streakCount;
                 });
