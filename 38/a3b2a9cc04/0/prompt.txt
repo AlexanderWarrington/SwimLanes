@@ -1,0 +1,1 @@
+review the codebase and realese/1.1 branch - i want to merge up to main now with the comments from V1 but all the code fixes from the branches in Swimland_App.html review pr for context - write a claude.md file for yourself as well
