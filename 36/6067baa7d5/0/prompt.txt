@@ -15,3 +15,7 @@ okay and now for your own learning - how could you didnt catch any of this when 
 ---
 
 this skill is saved for you? right?  and you have updated the claude.md file yes? and a project memory?
+
+---
+
+so the commits - we are on main - shall we checkout and commit and then back into main - also we should probs commit the learning from this aswell - we can leave out the test-minmal and test_simple.html th - i want to have functionality smoke tests everytime changes are made - do /tests folder help this?
