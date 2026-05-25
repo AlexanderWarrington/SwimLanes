@@ -1,0 +1,23 @@
+{
+  "cli_version": "0.6.2",
+  "checkpoint_id": "3c30abf09931",
+  "session_id": "2acfb4bd-3ac4-489c-bc9e-cc82576be325",
+  "strategy": "manual-commit",
+  "created_at": "2026-05-25T22:18:29.6203741Z",
+  "branch": "fix/js-bugs-and-tooling",
+  "checkpoints_count": 1,
+  "files_touched": [],
+  "agent": "Claude Code",
+  "model": "claude-sonnet-4-6",
+  "turn_id": "80dedbbf0143",
+  "token_usage": {
+    "input_tokens": 97,
+    "cache_creation_tokens": 91964,
+    "cache_read_tokens": 5712644,
+    "output_tokens": 47485,
+    "api_call_count": 83
+  },
+  "session_metrics": {
+    "turn_count": 5
+  }
+}
