@@ -3,7 +3,7 @@
   "checkpoint_id": "38a3b2a9cc04",
   "strategy": "manual-commit",
   "branch": "release/1.1",
-  "checkpoints_count": 0,
+  "checkpoints_count": 1,
   "files_touched": [
     "CLAUDE.md",
     "Swimlane_App.html"
@@ -14,13 +14,19 @@
       "transcript": "/38/a3b2a9cc04/0/full.jsonl",
       "content_hash": "/38/a3b2a9cc04/0/content_hash.txt",
       "prompt": "/38/a3b2a9cc04/0/prompt.txt"
+    },
+    {
+      "metadata": "/38/a3b2a9cc04/1/metadata.json",
+      "transcript": "/38/a3b2a9cc04/1/full.jsonl",
+      "content_hash": "/38/a3b2a9cc04/1/content_hash.txt",
+      "prompt": ""
     }
   ],
   "token_usage": {
-    "input_tokens": 42,
-    "cache_creation_tokens": 65311,
-    "cache_read_tokens": 2347305,
-    "output_tokens": 24164,
-    "api_call_count": 38
+    "input_tokens": 215,
+    "cache_creation_tokens": 425389,
+    "cache_read_tokens": 15885655,
+    "output_tokens": 103411,
+    "api_call_count": 176
   }
 }
