@@ -74,7 +74,7 @@ Render never writes State. Actions never write the DOM directly.
 ## Working in this repo
 
 - **Never edit `Swimlane App_V1.html`** — it is archived reference only.
-- Feature branches merge into `release/1.1`, which merges into `main`.
+- Branch from `main`, PR back to `main`. Prefix: `feat/`, `fix/`, `docs/`, `test/`, `chore/`. See README.md for the full convention.
 - When adding a new item type: update `Config.itemTypes`, add CSS badge styles, add to Horizon filter condition, add to `updateDayToggles` countdown selector.
 - When changing the state shape: bump `version` in `dbName`/`fallbackKey` suffix and update `hydrate()` to handle the migration.
 
