@@ -1,0 +1,22 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell(gh *)",
+      "WebFetch(domain:entire.io)",
+      "WebFetch(domain:github.com)",
+      "Bash(curl -fsSL https://entire.io/install.sh)",
+      "Bash(bash)",
+      "Bash(gh auth *)",
+      "Bash(Test-Path \"C:\\\\Users\\\\PC\\\\AppData\\\\Local\\\\Entire\\\\entire.exe\")",
+      "Bash(\"C:\\\\Users\\\\PC\\\\AppData\\\\Local\\\\Entire\\\\entire.exe\" --version)",
+      "Bash(mkdir -p /usr/local/bin)",
+      "Bash(ln -sf \"/c/Users/PC/AppData/Local/Entire/entire.exe\" \"/usr/local/bin/entire\")",
+      "Bash(entire --version)",
+      "Bash(mkdir -p \"/c/Users/PC/bin\")",
+      "Bash(cp \"/c/Users/PC/AppData/Local/Entire/entire.exe\" \"/c/Users/PC/bin/entire.exe\")",
+      "Bash(git branch *)",
+      "Bash(git push *)",
+      "Bash(git checkout *)"
+    ]
+  }
+}
