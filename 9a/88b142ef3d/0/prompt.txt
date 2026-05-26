@@ -1,0 +1,69 @@
+hello i think we were half way through commit and thihg went werid with the terminal UI
+
+---
+
+1
+
+---
+
+yep continue
+
+---
+
+leave it
+
+---
+
+PR
+
+---
+
+please yes
+
+---
+
+shall we clean up some branches
+
+---
+
+i want to able to hand it over the my friend - what do you thihnk - he doesnt have much github exp i dont think
+
+---
+
+i want him to work on it in github
+
+---
+
+no i mean aboout the branch deleting
+
+---
+
+please yes
+
+---
+
+cant see the feat/onboarding-redesign in the github ui
+
+---
+
+i can see it in the ui now lol
+
+---
+
+its still there its fine if it is - but can you comfirm you can seee it
+
+---
+
+okay to keep it - in case you want to go back to the redesign and changes things
+
+---
+
+so on smalleer screens like a laptop alot of the text gets squatched up and its hard to read - open up a fix brnach for this and make a plan using what you have learnt from this sesssion#
+
+---
+
+please yes
+
+---
+
+yes please - also add x button to tutoiral meanu
