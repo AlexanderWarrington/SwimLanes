@@ -1,0 +1,61 @@
+{
+  "cli_version": "0.6.2",
+  "checkpoint_id": "d9028d4d5863",
+  "session_id": "4cf29621-4030-43a4-aa74-f3fdc63adfbc",
+  "strategy": "manual-commit",
+  "created_at": "2026-05-26T20:40:58.9724016Z",
+  "branch": "fix/small-screen-layout",
+  "checkpoints_count": 2,
+  "files_touched": [
+    "Swimlane_App.html"
+  ],
+  "agent": "Claude Code",
+  "model": "claude-sonnet-4-6",
+  "turn_id": "811dc2ece0e3",
+  "token_usage": {
+    "input_tokens": 101,
+    "cache_creation_tokens": 77178,
+    "cache_read_tokens": 3441526,
+    "output_tokens": 19535,
+    "api_call_count": 65
+  },
+  "session_metrics": {
+    "turn_count": 17
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-05-26T20:40:58.9234977Z",
+    "agent_lines": 0,
+    "agent_removed": 1,
+    "human_added": 0,
+    "human_modified": 2565,
+    "human_removed": 0,
+    "total_committed": 2565,
+    "total_lines_changed": 2566,
+    "agent_percentage": 0.03897116134060795,
+    "metric_version": 2
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 2,
+      "user_lines_added": 170,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0,
+      "user_added_per_file": {
+        ".claude/settings.local.json": 43,
+        "tools/horizon-diag.js": 127
+      }
+    },
+    {
+      "checkpoint_number": 3,
+      "user_lines_added": 171,
+      "user_lines_removed": 0,
+      "agent_lines_added": 2565,
+      "agent_lines_removed": 2551,
+      "user_added_per_file": {
+        ".claude/settings.local.json": 44,
+        "tools/horizon-diag.js": 127
+      }
+    }
+  ]
+}
