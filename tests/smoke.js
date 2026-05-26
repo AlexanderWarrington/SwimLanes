@@ -1,4 +1,4 @@
-/**
+﻿/**
  * tests/smoke.js — Automated smoke tests for Swimlane_App.html
  *
  * Usage:
@@ -184,7 +184,7 @@ async function runBrowserTests() {
     async function dismissOnboarding(page) {
         const has = await page.evaluate(() =>
             document.getElementById('onboarding-overlay')?.classList.contains('is-open'));
-        if (has) { await page.click('[data-action="closeOnboarding"]'); await page.waitForTimeout(300); }
+        if (has) { await page.click('[data-action="startFresh"]'); await page.waitForTimeout(300); }
     }
 
     // ── T2: Boot ────────────────────────────────────────────────────────────
@@ -210,7 +210,7 @@ async function runBrowserTests() {
             return o && o.classList.contains('is-open');
         });
         if (overlayVisible) {
-            await page.click('[data-action="closeOnboarding"]');
+            await page.click('[data-action="startFresh"]');
             await page.waitForTimeout(500);
         }
         const overlayClosed = await page.evaluate(() => {
@@ -236,7 +236,7 @@ async function runBrowserTests() {
         // Dismiss onboarding if present
         const hasOnboarding = await page.evaluate(() =>
             document.getElementById('onboarding-overlay')?.classList.contains('is-open'));
-        if (hasOnboarding) await page.click('[data-action="closeOnboarding"]');
+        if (hasOnboarding) await page.click('[data-action="startFresh"]');
         await page.waitForTimeout(500);
 
         // Click today's first track cell (the add-item area)
@@ -269,7 +269,7 @@ async function runBrowserTests() {
         await page.waitForTimeout(1500);
         const hasOnboarding = await page.evaluate(() =>
             document.getElementById('onboarding-overlay')?.classList.contains('is-open'));
-        if (hasOnboarding) await page.click('[data-action="closeOnboarding"]');
+        if (hasOnboarding) await page.click('[data-action="startFresh"]');
         await page.waitForTimeout(300);
 
         await page.keyboard.press('Control+k');
@@ -291,7 +291,7 @@ async function runBrowserTests() {
         await page.waitForTimeout(1500);
         const hasOnboarding = await page.evaluate(() =>
             document.getElementById('onboarding-overlay')?.classList.contains('is-open'));
-        if (hasOnboarding) await page.click('[data-action="closeOnboarding"]');
+        if (hasOnboarding) await page.click('[data-action="startFresh"]');
         await page.waitForTimeout(300);
 
         // Add item via App.Actions if accessible
@@ -332,7 +332,7 @@ async function runBrowserTests() {
         await page.waitForTimeout(1500);
         const hasOnboarding = await page.evaluate(() =>
             document.getElementById('onboarding-overlay')?.classList.contains('is-open'));
-        if (hasOnboarding) await page.click('[data-action="closeOnboarding"]');
+        if (hasOnboarding) await page.click('[data-action="startFresh"]');
         await page.waitForTimeout(300);
 
         const initialLaneCount = await page.evaluate(() => window.App?.state?.lanes?.length ?? 0);
@@ -348,96 +348,58 @@ async function runBrowserTests() {
         await page.close();
     }
 
-    // ── T8: Horizon — future hz-item text is an editable <input> ────────────────
-    // Regression: before the fix, .index-text was a <span> with seekToDate and
-    // could not be typed into. This test fails on the old code, passes after fix.
+    // ── T8: Horizon — shows M/O/E items, excludes T (Task) items ────────────────
+    // The horizon is a read-only index of upcoming Milestones, Outcomes, and
+    // Events. Tasks (type-task) must never appear in it.
     {
         const tomorrow = new Date(); tomorrow.setDate(tomorrow.getDate() + 1);
         const futureDateStr = tomorrow.toISOString().split('T')[0];
         const { page, errors } = await seededPage([
-            { id: 'hz-test-1', laneId: 'test-lane', dateStr: futureDateStr,
-              type: 'type-milestone', text: 'Future Goal', isDone: false }
+            { id: 'hz-m-1', laneId: 'test-lane', dateStr: futureDateStr,
+              type: 'type-milestone', text: 'Key Milestone', isDone: false },
+            { id: 'hz-t-1', laneId: 'test-lane', dateStr: futureDateStr,
+              type: 'type-task',      text: 'Just a Task',  isDone: false }
         ]);
-
-        // Diagnostic: log IDB contents and horizon state to understand failures
-        const diag = await page.evaluate(async () => {
-            const idbData = await new Promise(resolve => {
-                const req = indexedDB.open('SwimlaneDB_V14', 1);
-                req.onsuccess = e => {
-                    const db = e.target.result;
-                    const tx = db.transaction('state', 'readonly');
-                    tx.objectStore('state').get('appData').onsuccess = r => { db.close(); resolve(r.target.result); };
-                };
-                req.onerror = () => resolve(null);
-            });
-            return {
-                idbItems: idbData?.items?.length ?? 'null',
-                idbLanes: idbData?.lanes?.map(l => l.id),
-                horizonVisible: document.getElementById('journal-horizon')?.classList.contains('is-expanded'),
-                hzItems: document.querySelectorAll('.hz-item').length,
-                horizonHtml: document.getElementById('journal-horizon')?.innerHTML?.substring(0, 300)
-            };
-        });
-        console.log('  [T8 diag]', JSON.stringify(diag));
 
         await page.click('[data-action="toggleHorizon"]');
         await page.waitForTimeout(500);
 
-        const isInput = await page.evaluate(() => {
-            const el = document.querySelector('.hz-item .index-text');
-            return el ? el.tagName === 'INPUT' : false;
+        const { hzCount, hasTask } = await page.evaluate(() => {
+            const items = Array.from(document.querySelectorAll('.hz-item'));
+            return {
+                hzCount: items.length,
+                hasTask: items.some(el => el.classList.contains('type-task'))
+            };
         });
-        record('T8 Horizon: hz-item text is editable <input>', isInput,
-            isInput ? '' : '.index-text element is not an <input> (was a read-only span)');
+        const ok = hzCount === 1 && !hasTask;
+        record('T8 Horizon: shows M/O/E items, excludes T tasks', ok,
+            !ok ? `hzCount=${hzCount}, hasTask=${hasTask}` : '');
         await page.screenshot({ path: path.join(SCREENSHOT_DIR, 't8-horizon-input.png') });
         await page.close();
     }
 
-    // ── T9: Horizon — typing in hz-item input persists to state ─────────────────
-    // Regression: before the fix, the text span had no input handler and typing
-    // was impossible. After fix, edits must debounce-save to localStorage.
+    // ── T9: Horizon — hz-item text is a read-only span with correct content ──────
+    // Horizon items are auto-populated from swimlane state and must not be
+    // editable inputs. The .index-text element must be a <span> showing the
+    // item's text exactly.
     {
         const tomorrow = new Date(); tomorrow.setDate(tomorrow.getDate() + 1);
         const futureDateStr = tomorrow.toISOString().split('T')[0];
         const { page, errors } = await seededPage([
-            { id: 'hz-edit-1', laneId: 'test-lane', dateStr: futureDateStr,
-              type: 'type-milestone', text: 'Original Text', isDone: false }
+            { id: 'hz-ro-1', laneId: 'test-lane', dateStr: futureDateStr,
+              type: 'type-outcome', text: 'My Outcome Text', isDone: false }
         ]);
 
         await page.click('[data-action="toggleHorizon"]');
         await page.waitForTimeout(500);
 
-        // Type into the hz-item input and wait for the 300ms editTask debounce
-        // + 300ms debouncedSave to flush to localStorage.
-        const typed = await page.evaluate(async () => {
-            const input = document.querySelector('.hz-item .index-text');
-            if (!input || input.tagName !== 'INPUT') return false;
-            input.focus();
-            input.value = 'Edited Text';
-            input.dispatchEvent(new Event('input', { bubbles: true }));
-            await new Promise(r => setTimeout(r, 800));
-            return true;
+        const { isSpan, text } = await page.evaluate(() => {
+            const el = document.querySelector('.hz-item .index-text');
+            return { isSpan: el?.tagName === 'SPAN', text: el?.textContent?.trim() ?? null };
         });
-        await page.waitForTimeout(300); // extra buffer for debouncedSave
-
-        const savedText = await page.evaluate(async () => {
-            return new Promise(resolve => {
-                const req = indexedDB.open('SwimlaneDB_V14', 1);
-                req.onsuccess = e => {
-                    const db = e.target.result;
-                    const tx = db.transaction('state', 'readonly');
-                    tx.objectStore('state').get('appData').onsuccess = r => {
-                        db.close();
-                        resolve(r.target.result?.items?.find(i => i.id === 'hz-edit-1')?.text ?? null);
-                    };
-                    tx.onerror = () => { db.close(); resolve(null); };
-                };
-                req.onerror = () => resolve(null);
-            });
-        });
-        const ok = typed && savedText === 'Edited Text';
-        record('T9 Horizon: editing hz-item text saves to state', ok,
-            !typed ? 'no editable input found' : `saved text: "${savedText}"`);
+        const ok = isSpan && text === 'My Outcome Text';
+        record('T9 Horizon: hz-item text is read-only span with correct content', ok,
+            !ok ? `isSpan=${isSpan}, text="${text}"` : '');
         await page.screenshot({ path: path.join(SCREENSHOT_DIR, 't9-horizon-edit.png') });
         await page.close();
     }
@@ -554,3 +516,4 @@ runBrowserTests().then(() => {
     console.error('Fatal error:', err.message);
     process.exit(1);
 });
+
