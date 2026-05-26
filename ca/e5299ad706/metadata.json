@@ -1,0 +1,31 @@
+{
+  "cli_version": "0.6.2",
+  "checkpoint_id": "cae5299ad706",
+  "strategy": "manual-commit",
+  "branch": "fix/horizon-editable",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "tests/screenshots/t2-boot.png",
+    "tests/screenshots/t3-onboarding.png",
+    "tests/screenshots/t4-add-item.png",
+    "tests/screenshots/t5-search.png",
+    "tests/screenshots/t6-undo.png",
+    "tests/screenshots/t7-persist.png",
+    "tests/smoke.js"
+  ],
+  "sessions": [
+    {
+      "metadata": "/ca/e5299ad706/0/metadata.json",
+      "transcript": "/ca/e5299ad706/0/full.jsonl",
+      "content_hash": "/ca/e5299ad706/0/content_hash.txt",
+      "prompt": "/ca/e5299ad706/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 66,
+    "cache_creation_tokens": 94717,
+    "cache_read_tokens": 3846439,
+    "output_tokens": 59555,
+    "api_call_count": 60
+  }
+}
