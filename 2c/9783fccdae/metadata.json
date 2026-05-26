@@ -3,7 +3,7 @@
   "checkpoint_id": "2c9783fccdae",
   "strategy": "manual-commit",
   "branch": "main",
-  "checkpoints_count": 2,
+  "checkpoints_count": 3,
   "files_touched": [
     "tests/screenshots/t10-horizon-rightclick.png",
     "tests/screenshots/t11-horizon-doubletap.png",
@@ -27,13 +27,19 @@
       "transcript": "/2c/9783fccdae/1/full.jsonl",
       "content_hash": "/2c/9783fccdae/1/content_hash.txt",
       "prompt": "/2c/9783fccdae/1/prompt.txt"
+    },
+    {
+      "metadata": "/2c/9783fccdae/2/metadata.json",
+      "transcript": "/2c/9783fccdae/2/full.jsonl",
+      "content_hash": "/2c/9783fccdae/2/content_hash.txt",
+      "prompt": "/2c/9783fccdae/2/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 140,
-    "cache_creation_tokens": 384502,
-    "cache_read_tokens": 8918668,
-    "output_tokens": 111425,
-    "api_call_count": 102
+    "input_tokens": 221,
+    "cache_creation_tokens": 508551,
+    "cache_read_tokens": 13780124,
+    "output_tokens": 161180,
+    "api_call_count": 168
   }
 }
