@@ -208,8 +208,12 @@
             height: var(--grid-size); line-height: var(--grid-size); box-shadow: 0 1px 0 dotted #e5e5e5; padding: 0; width: 100%;
         }
         .hz-item.is-done .index-text { text-decoration: line-through; opacity: 0.5; color: #94a3b8; }
-        .index-text { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; padding-right: 10px;}
-        .index-days { font-family: var(--font-ui); font-weight: bold; color: #ef4444; font-size: 24px; padding-right: 8px; flex-shrink: 0;} 
+        .index-text { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-right: 4px;
+            background: transparent; border: none; outline: none; font-family: inherit; font-size: inherit; font-weight: inherit; color: inherit; cursor: text; }
+        .hz-nav { flex-shrink: 0; padding: 0 8px; color: #94a3b8; opacity: 0; cursor: pointer; font-size: 18px; transition: opacity 0.15s; line-height: var(--grid-size); }
+        .hz-item:hover .hz-nav { opacity: 0.5; }
+        .hz-nav:hover { opacity: 1 !important; }
+        .index-days { font-family: var(--font-ui); font-weight: bold; color: #ef4444; font-size: 24px; padding-right: 8px; flex-shrink: 0;}
         .type-m-index .index-days { color: #854d0e; }
 
         /* ================= DAYS & TRACKS ================= */
@@ -1110,8 +1114,7 @@
                 if(item) {
                     this.mutate(() => { item.text = text; }, 'silentSave'); 
                     document.querySelectorAll(`.item[data-id="${id}"] .text-input-readonly`).forEach(el => el.textContent = text);
-                    document.querySelectorAll(`.index-list li[data-id="${id}"] .index-text`).forEach(el => el.textContent = text);
-                    EventBus.emit('horizonChanged');
+                    document.querySelectorAll(`.index-list li[data-id="${id}"] .index-text`).forEach(el => { if (el.tagName === 'INPUT') el.value = text; else el.textContent = text; });
                 }
             },
             updateTaskNote(id, noteHTML) {
@@ -1740,7 +1743,8 @@
                                     <span class="type-badge action-btn" role="button" tabindex="0" data-action="cycleType" style="margin-right: 8px;">${typeConfig.label}</span>
                                     ${projBadge}
                                 </div>
-                                <span class="index-text action-btn" role="button" tabindex="0" data-action="seekToDate" data-val="${data.dateStr}" data-id="${data.id}">${Utils.escape(data.text)}</span>
+                                <input class="index-text action-input" data-action="editTask" data-id="${data.id}" value="${Utils.escape(data.text)}" spellcheck="false" autocomplete="off">
+                                <span class="hz-nav action-btn" role="button" tabindex="0" data-action="seekToDate" data-val="${data.dateStr}" data-id="${data.id}" title="Scroll to date">↗</span>
                                 <span class="index-days">${timeStr}</span>
                             `;
                             ul.appendChild(li);
@@ -2332,8 +2336,8 @@
 
                 let lastTap = 0;
                 document.addEventListener('touchend', (e) => {
-                    if (!e.target.closest('.track') && !e.target.closest('.proj-task-list')) return; 
-                    const itemEl = e.target.closest('.item');
+                    if (!e.target.closest('.track') && !e.target.closest('.proj-task-list') && !e.target.closest('.overdue-bin') && !e.target.closest('.hz-item')) return;
+                    const itemEl = e.target.closest('.item') || e.target.closest('.hz-item');
                     if (itemEl && !e.target.classList.contains('action-input') && !e.target.classList.contains('action-btn')) {
                         const currentTime = new Date().getTime();
                         if (currentTime - lastTap < 500 && currentTime - lastTap > 0) { Actions.toggleDone(itemEl.dataset.id); e.preventDefault(); }
@@ -2347,7 +2351,8 @@
                         if(action === 'editLaneTitle') Actions.updateLaneTitle(e.target.dataset.id, e.target.value);
                         if(action === 'editDiary') Actions.updateDiary(e.target.dataset.date, e.target.value);
                         if(action === 'editTask') {
-                            const id = e.target.closest('.item').dataset.id;
+                            const id = (e.target.closest('.item') || e.target.closest('.hz-item'))?.dataset.id;
+                            if (!id) return;
                             document.querySelectorAll(`.item[data-id="${id}"] .text-input`).forEach(el => { if(el !== e.target) el.value = e.target.value; });
                             clearTimeout(e.target._saveTimer); e.target._saveTimer = setTimeout(() => Actions.updateTaskText(id, e.target.value), 300);
                         }

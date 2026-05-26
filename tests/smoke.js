@@ -93,6 +93,100 @@ async function runBrowserTests() {
         return { page, errors };
     }
 
+    // Loads the app with known state:
+    //   1. Fresh blank page (storage wiped by freshPage initScript)
+    //   2. Second initScript sets swimlane_onboarded so onboarding never blocks
+    //   3. First navigation initialises the app's IDB connection
+    //   4. Seeded state written into IDB from the page context
+    //   5. Reload — app boots from the seeded IDB, no onboarding
+    // items: array of item objects; settings: partial settings override.
+    // Returns { page, errors, laneId } — page is already loaded and ready.
+    // Seeds IDB with a known state and returns a fresh page booted from it.
+    //
+    // The naive approach (write seed → reload) fails because the app's beforeunload
+    // handler calls Store.save(), which writes the stale in-memory default state back
+    // over the seed before the new page can read it.
+    //
+    // Fix: use a disposable "seed writer" page that we close with runBeforeUnload: false
+    // (Playwright's default). The seed survives in IDB, and a separate fresh test page
+    // then boots from it with no interference.
+    async function seededPage(items, settings = {}) {
+        const laneId = 'test-lane';
+        const seedState = {
+            version: 14,
+            lanes:   [{ id: laneId, title: 'Lane', minimized: false, color: '#6366f1' }],
+            habits: [], notes: [], projects: [],
+            habitChecks: {}, diary: {}, focus: {},
+            items,
+            settings: { theme: 'dotted', horizonMode: 'all', habitMode: 'streak',
+                        showAchievements: false, showHorizon: false, habitsMin: false, diaryMin: false,
+                        ...settings }
+        };
+
+        // Step 1: load the app on a throwaway page to get onto the file:// origin,
+        // then write the seed into IDB. We must be on file:// because that is the
+        // origin the app uses; about:blank has a null origin and would create a
+        // separate IDB namespace.
+        const seedPage = await ctx.newPage();
+        await seedPage.goto(FILE_URL);
+        await seedPage.waitForTimeout(600); // let the app open its IDB connection
+
+        const writeResult = await seedPage.evaluate(async (stateToSave) => {
+            return await new Promise((resolve) => {
+                const req = indexedDB.open('SwimlaneDB_V14', 1);
+                req.onsuccess = (e) => {
+                    const db = e.target.result;
+                    try {
+                        const tx = db.transaction('state', 'readwrite');
+                        tx.objectStore('state').put(stateToSave, 'appData');
+                        tx.oncomplete = () => { db.close(); resolve({ ok: true }); };
+                        tx.onerror   = (err) => { db.close(); resolve({ ok: false, err: String(err) }); };
+                    } catch(e) { db.close(); resolve({ ok: false, err: e.message }); }
+                };
+                req.onerror = () => resolve({ ok: false, err: 'open-error' });
+            });
+        }, seedState);
+        console.log('  [seededPage write]', JSON.stringify(writeResult));
+
+        // Step 2: flush the committed IDB write to shared storage before closing.
+        // Abruptly terminating the page (page.close()) causes headless Chromium to
+        // skip the IDB flush, so the next page sees stale data.
+        // Navigating away triggers a clean unload which flushes IDB, but it also
+        // fires beforeunload → Store.save() which would overwrite the seed.
+        // Fix: patch IDBObjectStore.prototype.put to a no-op for one call so that
+        // the beforeunload save is silently swallowed, then navigate away to flush.
+        await seedPage.evaluate((seed) => {
+            const orig = IDBObjectStore.prototype.put;
+            IDBObjectStore.prototype.put = function(value, key) {
+                IDBObjectStore.prototype.put = orig; // restore after one interception
+                // Write the seed instead of the stale in-memory state
+                return orig.call(this, seed, key);
+            };
+        }, seedState);
+        await seedPage.goto('about:blank'); // triggers beforeunload → intercepted put → seed stays
+        await seedPage.close();
+
+        // Step 3: open a fresh test page. It boots cold from IDB — which now holds
+        // our seed — so the app initialises with exactly the state we want.
+        const page = await ctx.newPage();
+        const errors = [];
+        page.on('pageerror', e => errors.push(e.message));
+        await page.addInitScript(() => {
+            localStorage.setItem('swimlane_onboarded', 'true');
+        });
+        await page.goto(FILE_URL);
+        await page.waitForTimeout(1500);
+
+        return { page, errors, laneId };
+    }
+
+    // Dismisses the onboarding overlay if it is open.
+    async function dismissOnboarding(page) {
+        const has = await page.evaluate(() =>
+            document.getElementById('onboarding-overlay')?.classList.contains('is-open'));
+        if (has) { await page.click('[data-action="closeOnboarding"]'); await page.waitForTimeout(300); }
+    }
+
     // ── T2: Boot ────────────────────────────────────────────────────────────
     {
         const { page, errors } = await freshPage();
@@ -251,6 +345,197 @@ async function runBrowserTests() {
         record('T7 Persist (reload)', reloadedOk,
             reloadErrors.length ? reloadErrors[0] : !reloadedOk ? `lanes ${initialLaneCount}→${afterReloadLaneCount}` : '');
         await page.screenshot({ path: path.join(SCREENSHOT_DIR, 't7-persist.png') });
+        await page.close();
+    }
+
+    // ── T8: Horizon — future hz-item text is an editable <input> ────────────────
+    // Regression: before the fix, .index-text was a <span> with seekToDate and
+    // could not be typed into. This test fails on the old code, passes after fix.
+    {
+        const tomorrow = new Date(); tomorrow.setDate(tomorrow.getDate() + 1);
+        const futureDateStr = tomorrow.toISOString().split('T')[0];
+        const { page, errors } = await seededPage([
+            { id: 'hz-test-1', laneId: 'test-lane', dateStr: futureDateStr,
+              type: 'type-milestone', text: 'Future Goal', isDone: false }
+        ]);
+
+        // Diagnostic: log IDB contents and horizon state to understand failures
+        const diag = await page.evaluate(async () => {
+            const idbData = await new Promise(resolve => {
+                const req = indexedDB.open('SwimlaneDB_V14', 1);
+                req.onsuccess = e => {
+                    const db = e.target.result;
+                    const tx = db.transaction('state', 'readonly');
+                    tx.objectStore('state').get('appData').onsuccess = r => { db.close(); resolve(r.target.result); };
+                };
+                req.onerror = () => resolve(null);
+            });
+            return {
+                idbItems: idbData?.items?.length ?? 'null',
+                idbLanes: idbData?.lanes?.map(l => l.id),
+                horizonVisible: document.getElementById('journal-horizon')?.classList.contains('is-expanded'),
+                hzItems: document.querySelectorAll('.hz-item').length,
+                horizonHtml: document.getElementById('journal-horizon')?.innerHTML?.substring(0, 300)
+            };
+        });
+        console.log('  [T8 diag]', JSON.stringify(diag));
+
+        await page.click('[data-action="toggleHorizon"]');
+        await page.waitForTimeout(500);
+
+        const isInput = await page.evaluate(() => {
+            const el = document.querySelector('.hz-item .index-text');
+            return el ? el.tagName === 'INPUT' : false;
+        });
+        record('T8 Horizon: hz-item text is editable <input>', isInput,
+            isInput ? '' : '.index-text element is not an <input> (was a read-only span)');
+        await page.screenshot({ path: path.join(SCREENSHOT_DIR, 't8-horizon-input.png') });
+        await page.close();
+    }
+
+    // ── T9: Horizon — typing in hz-item input persists to state ─────────────────
+    // Regression: before the fix, the text span had no input handler and typing
+    // was impossible. After fix, edits must debounce-save to localStorage.
+    {
+        const tomorrow = new Date(); tomorrow.setDate(tomorrow.getDate() + 1);
+        const futureDateStr = tomorrow.toISOString().split('T')[0];
+        const { page, errors } = await seededPage([
+            { id: 'hz-edit-1', laneId: 'test-lane', dateStr: futureDateStr,
+              type: 'type-milestone', text: 'Original Text', isDone: false }
+        ]);
+
+        await page.click('[data-action="toggleHorizon"]');
+        await page.waitForTimeout(500);
+
+        // Type into the hz-item input and wait for the 300ms editTask debounce
+        // + 300ms debouncedSave to flush to localStorage.
+        const typed = await page.evaluate(async () => {
+            const input = document.querySelector('.hz-item .index-text');
+            if (!input || input.tagName !== 'INPUT') return false;
+            input.focus();
+            input.value = 'Edited Text';
+            input.dispatchEvent(new Event('input', { bubbles: true }));
+            await new Promise(r => setTimeout(r, 800));
+            return true;
+        });
+        await page.waitForTimeout(300); // extra buffer for debouncedSave
+
+        const savedText = await page.evaluate(async () => {
+            return new Promise(resolve => {
+                const req = indexedDB.open('SwimlaneDB_V14', 1);
+                req.onsuccess = e => {
+                    const db = e.target.result;
+                    const tx = db.transaction('state', 'readonly');
+                    tx.objectStore('state').get('appData').onsuccess = r => {
+                        db.close();
+                        resolve(r.target.result?.items?.find(i => i.id === 'hz-edit-1')?.text ?? null);
+                    };
+                    tx.onerror = () => { db.close(); resolve(null); };
+                };
+                req.onerror = () => resolve(null);
+            });
+        });
+        const ok = typed && savedText === 'Edited Text';
+        record('T9 Horizon: editing hz-item text saves to state', ok,
+            !typed ? 'no editable input found' : `saved text: "${savedText}"`);
+        await page.screenshot({ path: path.join(SCREENSHOT_DIR, 't9-horizon-edit.png') });
+        await page.close();
+    }
+
+    // ── T10: Horizon — right-click on hz-item marks it done ──────────────────────
+    // Verifies the contextmenu → toggleDone path works for .hz-item elements.
+    {
+        const tomorrow = new Date(); tomorrow.setDate(tomorrow.getDate() + 1);
+        const futureDateStr = tomorrow.toISOString().split('T')[0];
+        const { page, errors } = await seededPage([
+            { id: 'hz-done-1', laneId: 'test-lane', dateStr: futureDateStr,
+              type: 'type-outcome', text: 'Right-click me', isDone: false }
+        ]);
+
+        await page.click('[data-action="toggleHorizon"]');
+        await page.waitForTimeout(500);
+
+        // The sticky journal-header can overlap hz-items and intercept a real
+        // pointer-click. Dispatch contextmenu directly from JS so the document
+        // handler fires without Playwright's interactability check.
+        await page.evaluate(() => {
+            const el = document.querySelector('.hz-item');
+            if (el) el.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true }));
+        });
+        await page.waitForTimeout(400);
+
+        // horizonData() re-renders on itemToggled and removes done items when
+        // showAchievements is false, so checking the DOM class is unreliable.
+        // Read IDB directly instead (debouncedSave fires within 300ms).
+        const isDone = await page.evaluate(async () => {
+            return new Promise(resolve => {
+                const req = indexedDB.open('SwimlaneDB_V14', 1);
+                req.onsuccess = e => {
+                    const db = e.target.result;
+                    const tx = db.transaction('state', 'readonly');
+                    tx.objectStore('state').get('appData').onsuccess = r => {
+                        db.close();
+                        resolve(r.target.result?.items?.find(i => i.id === 'hz-done-1')?.isDone === true);
+                    };
+                    tx.onerror = () => { db.close(); resolve(false); };
+                };
+                req.onerror = () => resolve(false);
+            });
+        });
+        record('T10 Horizon: right-click on hz-item marks done', isDone,
+            isDone ? '' : 'isDone not true in IDB after right-click');
+        await page.screenshot({ path: path.join(SCREENSHOT_DIR, 't10-horizon-rightclick.png') });
+        await page.close();
+    }
+
+    // ── T11: Horizon — double-tap on overdue item marks it done (mobile) ────────
+    // Regression: before the fix, the touchend guard required .track or
+    // .proj-task-list ancestry, excluding the overdue bin. After fix, the guard
+    // also allows .overdue-bin so double-tap completes overdue items.
+    {
+        const yesterday = new Date(); yesterday.setDate(yesterday.getDate() - 1);
+        const pastDateStr = yesterday.toISOString().split('T')[0];
+        const { page, errors } = await seededPage([
+            { id: 'overdue-1', laneId: 'test-lane', dateStr: pastDateStr,
+              type: 'type-task', text: 'Overdue task', isDone: false }
+        ]);
+
+        await page.click('[data-action="toggleHorizon"]');
+        await page.waitForTimeout(500);
+
+        // Simulate a double-tap (two touchend events within 500 ms).
+        const tapped = await page.evaluate(async () => {
+            const overdue = document.querySelector('.overdue-bin .item[data-id="overdue-1"]');
+            if (!overdue) return false;
+            const opts = { bubbles: true, cancelable: true, touches: [],
+                           changedTouches: [], targetTouches: [] };
+            overdue.dispatchEvent(new TouchEvent('touchend', opts));
+            await new Promise(r => setTimeout(r, 150));
+            overdue.dispatchEvent(new TouchEvent('touchend', opts));
+            await new Promise(r => setTimeout(r, 300));
+            return true;
+        });
+        await page.waitForTimeout(500); // allow 300ms debouncedSave timer + IDB write
+
+        const isDone = await page.evaluate(async () => {
+            return new Promise(resolve => {
+                const req = indexedDB.open('SwimlaneDB_V14', 1);
+                req.onsuccess = e => {
+                    const db = e.target.result;
+                    const tx = db.transaction('state', 'readonly');
+                    tx.objectStore('state').get('appData').onsuccess = r => {
+                        db.close();
+                        resolve(r.target.result?.items?.find(i => i.id === 'overdue-1')?.isDone === true);
+                    };
+                    tx.onerror = () => { db.close(); resolve(false); };
+                };
+                req.onerror = () => resolve(false);
+            });
+        });
+        record('T11 Horizon: double-tap on overdue item marks done', tapped && isDone,
+            !tapped ? 'overdue item not found in DOM' :
+            !isDone  ? 'item not marked done in state after double-tap' : '');
+        await page.screenshot({ path: path.join(SCREENSHOT_DIR, 't11-horizon-doubletap.png') });
         await page.close();
     }
 
