@@ -3,7 +3,7 @@
   "checkpoint_id": "518d507e0cd9",
   "strategy": "manual-commit",
   "branch": "fix/horizon-editable",
-  "checkpoints_count": 3,
+  "checkpoints_count": 6,
   "files_touched": [
     "Swimlane_App.html"
   ],
@@ -19,13 +19,19 @@
       "transcript": "/51/8d507e0cd9/1/full.jsonl",
       "content_hash": "/51/8d507e0cd9/1/content_hash.txt",
       "prompt": "/51/8d507e0cd9/1/prompt.txt"
+    },
+    {
+      "metadata": "/51/8d507e0cd9/2/metadata.json",
+      "transcript": "/51/8d507e0cd9/2/full.jsonl",
+      "content_hash": "/51/8d507e0cd9/2/content_hash.txt",
+      "prompt": "/51/8d507e0cd9/2/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 200,
-    "cache_creation_tokens": 204623,
-    "cache_read_tokens": 13065679,
-    "output_tokens": 118645,
-    "api_call_count": 172
+    "input_tokens": 249,
+    "cache_creation_tokens": 315805,
+    "cache_read_tokens": 15752515,
+    "output_tokens": 180240,
+    "api_call_count": 211
   }
 }
