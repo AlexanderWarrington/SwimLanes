@@ -3,8 +3,10 @@
   "checkpoint_id": "cae5299ad706",
   "strategy": "manual-commit",
   "branch": "fix/horizon-editable",
-  "checkpoints_count": 2,
+  "checkpoints_count": 3,
   "files_touched": [
+    "tests/screenshots/t10-horizon-rightclick.png",
+    "tests/screenshots/t11-horizon-doubletap.png",
     "tests/screenshots/t2-boot.png",
     "tests/screenshots/t3-onboarding.png",
     "tests/screenshots/t4-add-item.png",
@@ -25,13 +27,19 @@
       "transcript": "/ca/e5299ad706/1/full.jsonl",
       "content_hash": "/ca/e5299ad706/1/content_hash.txt",
       "prompt": "/ca/e5299ad706/1/prompt.txt"
+    },
+    {
+      "metadata": "/ca/e5299ad706/2/metadata.json",
+      "transcript": "/ca/e5299ad706/2/full.jsonl",
+      "content_hash": "/ca/e5299ad706/2/content_hash.txt",
+      "prompt": "/ca/e5299ad706/2/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 200,
-    "cache_creation_tokens": 204623,
-    "cache_read_tokens": 13065679,
-    "output_tokens": 118645,
-    "api_call_count": 172
+    "input_tokens": 250,
+    "cache_creation_tokens": 316623,
+    "cache_read_tokens": 15866545,
+    "output_tokens": 180815,
+    "api_call_count": 212
   }
 }

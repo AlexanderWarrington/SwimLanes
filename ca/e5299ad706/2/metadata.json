@@ -1,0 +1,45 @@
+{
+  "cli_version": "0.6.2",
+  "checkpoint_id": "cae5299ad706",
+  "session_id": "cad4b1c2-35ed-4f14-a5c6-9dedbb39686c",
+  "strategy": "manual-commit",
+  "created_at": "2026-05-26T17:51:25.9692341Z",
+  "branch": "fix/horizon-editable",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "tests/screenshots/t10-horizon-rightclick.png",
+    "tests/screenshots/t11-horizon-doubletap.png",
+    "tests/screenshots/t2-boot.png",
+    "tests/screenshots/t3-onboarding.png",
+    "tests/screenshots/t4-add-item.png",
+    "tests/screenshots/t5-search.png",
+    "tests/screenshots/t6-undo.png",
+    "tests/screenshots/t7-persist.png",
+    "tests/smoke.js"
+  ],
+  "agent": "Claude Code",
+  "model": "claude-sonnet-4-6",
+  "turn_id": "07d679820ebe",
+  "token_usage": {
+    "input_tokens": 50,
+    "cache_creation_tokens": 112000,
+    "cache_read_tokens": 2800866,
+    "output_tokens": 62170,
+    "api_call_count": 40
+  },
+  "session_metrics": {
+    "turn_count": 3
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-05-26T17:51:25.9335153Z",
+    "agent_lines": 0,
+    "agent_removed": 0,
+    "human_added": 0,
+    "human_modified": 562,
+    "human_removed": 0,
+    "total_committed": 562,
+    "total_lines_changed": 562,
+    "agent_percentage": 0,
+    "metric_version": 2
+  }
+}
