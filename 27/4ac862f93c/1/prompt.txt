@@ -1,0 +1,25 @@
+exit
+
+---
+
+can you give me a code to resume back into this convo in my terminal currently in remote session
+
+---
+
+hello so - my bad it was my miss understanding of the hoirzon functionality - you dont need to be  able to write text in there - its  auto populated from the below tasks - my bad - but still the menu is cut off by hozion - so when you go to open menu it should just close hoizon view - now the real one i can see now is that - can we reviw the functionality and intent of the of the T,E,O tags and how they are meant to show in hoirzon view and the simlane view
+
+---
+
+what evevr order is best for you
+
+---
+
+can you create a documentation layer for this in the app and the repo aswell as a minimal automated tutorial that users can spin up - im working ona friends idea - so im not that sure about how to best use it myself
+
+---
+
+keeep the tag line and keep the old content of the tutoiral scrren and just add to it 0 also start fresh isnt clearing the browsner
+
+---
+
+looks good lets do a buffered commit strat - so we can capture features and fixes docs ectect
