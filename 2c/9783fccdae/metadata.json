@@ -1,0 +1,33 @@
+{
+  "cli_version": "0.6.2",
+  "checkpoint_id": "2c9783fccdae",
+  "strategy": "manual-commit",
+  "branch": "main",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "tests/screenshots/t10-horizon-rightclick.png",
+    "tests/screenshots/t11-horizon-doubletap.png",
+    "tests/screenshots/t2-boot.png",
+    "tests/screenshots/t5-search.png",
+    "tests/screenshots/t6-undo.png",
+    "tests/screenshots/t7-persist.png",
+    "tests/screenshots/t8-horizon-input.png",
+    "tests/screenshots/t9-horizon-edit.png",
+    "tests/smoke.js"
+  ],
+  "sessions": [
+    {
+      "metadata": "/2c/9783fccdae/0/metadata.json",
+      "transcript": "/2c/9783fccdae/0/full.jsonl",
+      "content_hash": "/2c/9783fccdae/0/content_hash.txt",
+      "prompt": "/2c/9783fccdae/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 17,
+    "cache_creation_tokens": 40315,
+    "cache_read_tokens": 281840,
+    "output_tokens": 3744,
+    "api_call_count": 11
+  }
+}
