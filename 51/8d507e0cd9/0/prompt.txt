@@ -1,0 +1,9 @@
+so the horizon feature isnt editable in the html doc - can you creat a bug fix branch for it and can you explain to me what the intented functionality of horizon is
+
+---
+
+please and add to tests- tests that hceck this exisitng bug and adn intended functionality
+
+---
+
+lets review where we are and where we can set off from
