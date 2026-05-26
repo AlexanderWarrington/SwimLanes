@@ -3,7 +3,7 @@
   "checkpoint_id": "13eaf60b4ab0",
   "strategy": "manual-commit",
   "branch": "main",
-  "checkpoints_count": 3,
+  "checkpoints_count": 4,
   "files_touched": [
     "Swimlane_App.html"
   ],
@@ -19,13 +19,19 @@
       "transcript": "/13/eaf60b4ab0/1/full.jsonl",
       "content_hash": "/13/eaf60b4ab0/1/content_hash.txt",
       "prompt": "/13/eaf60b4ab0/1/prompt.txt"
+    },
+    {
+      "metadata": "/13/eaf60b4ab0/2/metadata.json",
+      "transcript": "/13/eaf60b4ab0/2/full.jsonl",
+      "content_hash": "/13/eaf60b4ab0/2/content_hash.txt",
+      "prompt": "/13/eaf60b4ab0/2/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 139,
-    "cache_creation_tokens": 382307,
-    "cache_read_tokens": 8880077,
-    "output_tokens": 111216,
-    "api_call_count": 101
+    "input_tokens": 220,
+    "cache_creation_tokens": 506356,
+    "cache_read_tokens": 13741533,
+    "output_tokens": 160971,
+    "api_call_count": 167
   }
 }
