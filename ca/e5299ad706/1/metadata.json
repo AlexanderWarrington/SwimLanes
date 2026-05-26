@@ -1,0 +1,37 @@
+{
+  "cli_version": "0.6.2",
+  "checkpoint_id": "cae5299ad706",
+  "session_id": "2acfb4bd-3ac4-489c-bc9e-cc82576be325",
+  "strategy": "manual-commit",
+  "created_at": "2026-05-26T17:51:22.3700452Z",
+  "branch": "fix/horizon-editable",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "tests/smoke.js"
+  ],
+  "agent": "Claude Code",
+  "model": "claude-sonnet-4-6",
+  "turn_id": "8af11d49b6a5",
+  "token_usage": {
+    "input_tokens": 134,
+    "cache_creation_tokens": 109906,
+    "cache_read_tokens": 9219240,
+    "output_tokens": 59090,
+    "api_call_count": 112
+  },
+  "session_metrics": {
+    "turn_count": 9
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-05-26T17:51:22.3015067Z",
+    "agent_lines": 0,
+    "agent_removed": 0,
+    "human_added": 0,
+    "human_modified": 562,
+    "human_removed": 0,
+    "total_committed": 562,
+    "total_lines_changed": 562,
+    "agent_percentage": 0,
+    "metric_version": 2
+  }
+}
