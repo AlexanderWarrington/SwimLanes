@@ -1,0 +1,56 @@
+{
+  "cli_version": "0.6.2",
+  "checkpoint_id": "13eaf60b4ab0",
+  "session_id": "4cf29621-4030-43a4-aa74-f3fdc63adfbc",
+  "strategy": "manual-commit",
+  "created_at": "2026-05-26T19:57:10.2921026Z",
+  "branch": "main",
+  "checkpoints_count": 2,
+  "files_touched": [
+    "Swimlane_App.html"
+  ],
+  "agent": "Claude Code",
+  "model": "claude-sonnet-4-6",
+  "turn_id": "6b5ce9b3a870",
+  "token_usage": {
+    "input_tokens": 16,
+    "cache_creation_tokens": 38120,
+    "cache_read_tokens": 243249,
+    "output_tokens": 3535,
+    "api_call_count": 10
+  },
+  "session_metrics": {
+    "turn_count": 2
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-05-26T19:57:10.2686979Z",
+    "agent_lines": 0,
+    "agent_removed": 20,
+    "human_added": 0,
+    "human_modified": 2551,
+    "human_removed": 0,
+    "total_committed": 2551,
+    "total_lines_changed": 2571,
+    "agent_percentage": 0.7779074290159471,
+    "metric_version": 2
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 2,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0
+    },
+    {
+      "checkpoint_number": 3,
+      "user_lines_added": 42,
+      "user_lines_removed": 0,
+      "agent_lines_added": 3331,
+      "agent_lines_removed": 3016,
+      "user_added_per_file": {
+        ".claude/settings.local.json": 42
+      }
+    }
+  ]
+}
