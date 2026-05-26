@@ -1,0 +1,53 @@
+can you recap the 2 active conversions
+
+---
+
+can you recap the 2 active conversions
+
+---
+
+yes - they may be some errors with the tests themselfs - also did you use entire to pick up the pervious convos in this codebase?
+
+---
+
+please
+
+---
+
+shall we commit
+
+---
+
+open PR
+
+---
+
+yes delete please
+
+---
+
+just to double heck i should be able to write tezt into horiozon - im looking at the latest version and i cant seem to - what im i missing
+
+---
+
+what is the most future proof
+
+---
+
+what about the current smoke tests missed this - is it becuase they are not JS and playwrite driven? not we need to expand out are testing tools?
+
+---
+
+please
+
+---
+
+what branch will you commit to and do the PR from ? also you need to create a memory about these he visual layer so it doesnt get missed - this error should server as reminder
+
+---
+
+let me test the  html now
+
+---
+
+still cant write text into horizon and menu is blocked from opening we are going to need a more rigous why of testing the visualiarion layer - you have been confient twince now
