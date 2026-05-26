@@ -455,13 +455,7 @@ async function runBrowserTests() {
         await page.click('[data-action="toggleHorizon"]');
         await page.waitForTimeout(500);
 
-        // The sticky journal-header can overlap hz-items and intercept a real
-        // pointer-click. Dispatch contextmenu directly from JS so the document
-        // handler fires without Playwright's interactability check.
-        await page.evaluate(() => {
-            const el = document.querySelector('.hz-item');
-            if (el) el.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true }));
-        });
+        await page.click('.hz-item', { button: 'right' });
         await page.waitForTimeout(400);
 
         // horizonData() re-renders on itemToggled and removes done items when
