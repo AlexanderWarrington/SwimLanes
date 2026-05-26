@@ -104,17 +104,18 @@
 
         .journal-header > div { height: 132px; max-height: 132px; box-sizing: border-box; }
 
-        .header-track { 
-            width: 100%; padding: 0 10px 8px 10px; 
+        .header-track {
+            width: 100%; padding: 0 10px 8px 10px;
             position: relative; display: flex; flex-direction: column; align-items: center; justify-content: flex-end;
-            min-width: 0; overflow-x: hidden;
+            min-width: 0; overflow-x: hidden; pointer-events: none;
         }
+        .header-track > * { pointer-events: auto; }
 
         .header-track::after {
             content: ''; position: absolute; bottom: 0; left: 6px; right: 6px; height: 4px;
             border-radius: 2px 2px 0 0; background: var(--lc); opacity: 0.5; transition: opacity 0.2s;
         }
-        .header-track:hover::after { opacity: 1; }
+        .header-track:has(:hover)::after { opacity: 1; }
 
         .track-title {
             line-height: 1; border: none; background: transparent; 
@@ -123,7 +124,7 @@
         }
 
         .track-controls { position: absolute; top: 10px; right: 10px; display: flex; gap: 5px; opacity: 0; transition: opacity 0.2s; z-index: 10; }
-        .header-track:hover .track-controls { opacity: 1; }
+        .header-track:has(:hover) .track-controls { opacity: 1; }
         @media (hover: none) { .track-controls { opacity: 1; } } 
         
         .ctrl-btn {
@@ -208,8 +209,7 @@
             height: var(--grid-size); line-height: var(--grid-size); box-shadow: 0 1px 0 dotted #e5e5e5; padding: 0; width: 100%;
         }
         .hz-item.is-done .index-text { text-decoration: line-through; opacity: 0.5; color: #94a3b8; }
-        .index-text { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-right: 4px;
-            background: transparent; border: none; outline: none; font-family: inherit; font-size: inherit; font-weight: inherit; color: inherit; cursor: text; }
+        .index-text { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-right: 4px; }
         .hz-nav { flex-shrink: 0; padding: 0 8px; color: #94a3b8; opacity: 0; cursor: pointer; font-size: 18px; transition: opacity 0.15s; line-height: var(--grid-size); }
         .hz-item:hover .hz-nav { opacity: 0.5; }
         .hz-nav:hover { opacity: 1 !important; }
@@ -384,11 +384,17 @@
         .onboarding-modal {
             background: #fdfbf7; width: 100%; max-width: 600px; border-radius: 12px; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25);
             display: flex; flex-direction: column; align-items: flex-start; padding: 40px; border: 2px solid #cbd5e1; z-index: 9999;
+            max-height: 90vh; overflow-y: auto;
         }
         .onboarding-modal h1 { font-family: var(--font-ui); font-size: 56px; color: #0f172a; margin: 0 0 10px 0; line-height: 1; }
-        .onboarding-modal p.subtitle { font-family: sans-serif; font-size: 16px; color: #475569; margin-top: 0; margin-bottom: 30px; font-weight: 500;}
-        .onboarding-modal ul { font-family: sans-serif; font-size: 15px; color: #475569; line-height: 1.6; padding-left: 20px; margin-bottom: 40px; width: 100%; text-align: left;}
-        .onboarding-modal ul li { margin-bottom: 12px; }
+        .onboarding-modal p.subtitle { font-family: sans-serif; font-size: 16px; color: #475569; margin-top: 0; margin-bottom: 20px; font-weight: 500; }
+        .onboarding-modal ul { font-family: sans-serif; font-size: 15px; color: #475569; line-height: 1.6; padding-left: 20px; margin-bottom: 20px; width: 100%; text-align: left; }
+        .onboarding-modal ul li { margin-bottom: 10px; }
+        .onb-section { font-family: sans-serif; font-size: 14px; color: #475569; line-height: 1.6; margin-bottom: 16px; width: 100%; }
+        .onb-types { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; }
+        .onb-type { display: flex; align-items: center; gap: 12px; }
+        .onb-badge { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; border-radius: 4px; font-weight: bold; font-size: 13px; flex-shrink: 0; font-family: var(--font-ui); }
+        .onb-actions { width: 100%; display: flex; gap: 12px; justify-content: center; margin-top: 24px; }
         
         .focus-stats-modal { background: #fff; width: 100%; max-width: 400px; border-radius: 12px; padding: 30px; font-family: sans-serif; display: flex; flex-direction: column; gap: 15px; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25);}
         .focus-stat-title { font-size: 14px; font-weight: bold; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 5px; border-bottom: 1px solid #e2e8f0; padding-bottom: 5px;}
@@ -520,16 +526,40 @@
     <div class="overlay-bg" id="onboarding-overlay" style="z-index: 9999;">
         <div class="onboarding-modal">
             <h1>Time, Untangled.</h1>
-            <p class="subtitle">Welcome to Swimlane-your continuous, infinite-canvas journal.</p>
+            <p class="subtitle">Welcome to Swimlane — your continuous, infinite-canvas journal.</p>
             <ul>
                 <li><strong>The Infinite Canvas:</strong> Traditional journals trap you in pages. Here, time is fluid. Scroll up into the past, or down into the future.</li>
-                <li><strong>Projects & Notes:</strong> Click the 📁 or 📝 icons in a lane header to manage backlog tasks and long-form notes outside of the timeline. Tabs are fully draggable.</li>
-                <li><strong>Task Context:</strong> Click the `▼` on any task to open an inline rich-text notebook directly on the timeline.</li>
+                <li><strong>Projects &amp; Notes:</strong> Click the 📁 or 📝 icons in a lane header to manage backlog tasks and long-form notes outside of the timeline. Tabs are fully draggable.</li>
+                <li><strong>Task Context:</strong> Click the ▼ on any task to open an inline rich-text notebook directly on the timeline.</li>
                 <li><strong>Contextual Flow:</strong> Opening a project isolates that lane and opens it alongside your calendar. Drag and drop project tasks directly onto calendar days to schedule them.</li>
                 <li><strong>Command Palette:</strong> Press <strong>Ctrl + K</strong> (or Cmd + K) to instantly search your entire timeline.</li>
             </ul>
-            <div style="width: 100%; display: flex; justify-content: center;">
-                <div class="ui-btn action-btn" role="button" tabindex="0" data-action="closeOnboarding" style="width: auto; padding: 8px 30px; font-size: 24px;">Start Journaling</div>
+
+            <div class="onb-section">
+                <strong>Four item types</strong> — click the coloured badge on any item to cycle through:
+                <div class="onb-types">
+                    <div class="onb-type">
+                        <span class="onb-badge" style="background:#f1f5f9;color:#64748b;border:1px solid #e2e8f0;">T</span>
+                        <span><strong>Task</strong> — everyday to-do. Right-click to mark done.</span>
+                    </div>
+                    <div class="onb-type">
+                        <span class="onb-badge" style="background:#fef08a;color:#854d0e;border:1px solid #fde047;">M</span>
+                        <span><strong>Milestone</strong> — a key date you're working toward. Appears in the Horizon with a countdown.</span>
+                    </div>
+                    <div class="onb-type">
+                        <span class="onb-badge" style="background:#6366f1;color:#fff;border:1px solid #6366f1;">O</span>
+                        <span><strong>Outcome</strong> — a big goal with a target date. Displayed prominently in your lane.</span>
+                    </div>
+                    <div class="onb-type">
+                        <span class="onb-badge" style="background:#e0e7ff;color:#1e40af;border:1px solid #bfdbfe;">E</span>
+                        <span><strong>Event</strong> — something happening on a specific date (meeting, release, trip).</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="onb-actions">
+                <div class="ui-btn action-btn" role="button" tabindex="0" data-action="loadDemo" style="width:auto;padding:8px 24px;font-size:20px;background:#f1f5f9;color:#475569;border:1px solid #cbd5e1;">Try Demo</div>
+                <div class="ui-btn action-btn" role="button" tabindex="0" data-action="startFresh" style="width:auto;padding:8px 30px;font-size:20px;">Start Fresh</div>
             </div>
         </div>
     </div>
@@ -1114,7 +1144,7 @@
                 if(item) {
                     this.mutate(() => { item.text = text; }, 'silentSave'); 
                     document.querySelectorAll(`.item[data-id="${id}"] .text-input-readonly`).forEach(el => el.textContent = text);
-                    document.querySelectorAll(`.index-list li[data-id="${id}"] .index-text`).forEach(el => { if (el.tagName === 'INPUT') el.value = text; else el.textContent = text; });
+                    document.querySelectorAll(`.index-list li[data-id="${id}"] .index-text`).forEach(el => { el.textContent = text; });
                 }
             },
             updateTaskNote(id, noteHTML) {
@@ -1297,7 +1327,61 @@
                 a.click(); URL.revokeObjectURL(url);
                 Undo.showSystemToast('Backup Exported Successfully', false);
             },
-            importData() { DOM.importUpload.click(); }
+            importData() { DOM.importUpload.click(); },
+
+            startFresh() {
+                state.lanes = [{ id: 'l_1', title: 'Company', minimized: false, color: '#4F8EF7' }, { id: 'l_2', title: 'Home', minimized: false, color: '#8B5CF6' }, { id: 'l_3', title: 'Admin', minimized: false, color: '#10B981' }];
+                state.habits = [{ id: 'h_1', title: 'Workout' }, { id: 'h_2', title: 'Read' }, { id: 'h_3', title: 'Diet' }, { id: 'h_4', title: 'Sleep' }];
+                state.items = []; state.notes = []; state.projects = [];
+                state.habitChecks = {}; state.diary = {}; state.focus = {};
+                state.settings = { theme: Config.defaultTheme, horizonMode: 'all', habitMode: 'streak', showAchievements: false, showHorizon: false, habitsMin: false, diaryMin: false };
+                Store.save();
+                DOM.onboarding.classList.remove('is-open');
+                localStorage.setItem('swimlane_onboarded', 'true');
+                Render.hardRebuild();
+                setTimeout(() => VirtualScroll.seekToDate(Utils.todayStr), 150);
+            },
+
+            loadDemoData() {
+                const d = n => { const dt = new Date(); dt.setDate(dt.getDate() + n); return dt.toISOString().split('T')[0]; };
+                const wId = Utils.uuid(), lId = Utils.uuid(), hId = Utils.uuid();
+                const hab1 = Utils.uuid(), hab2 = Utils.uuid();
+                state.lanes = [
+                    { id: wId, title: 'Work',   minimized: false, color: '#6366f1' },
+                    { id: lId, title: 'Life',   minimized: false, color: '#10b981' },
+                    { id: hId, title: 'Health', minimized: false, color: '#f43f5e' },
+                ];
+                state.habits = [{ id: hab1, title: 'Morning run' }, { id: hab2, title: 'Read 30 min' }];
+                state.items = [
+                    { id: Utils.uuid(), laneId: wId, dateStr: d(60),  type: 'type-outcome',   text: 'Ship product v2.0',       isDone: false, note: '' },
+                    { id: Utils.uuid(), laneId: wId, dateStr: d(14),  type: 'type-milestone', text: 'Design review complete',  isDone: false, note: '' },
+                    { id: Utils.uuid(), laneId: wId, dateStr: d(7),   type: 'type-event',     text: 'Team offsite',            isDone: false, note: '' },
+                    { id: Utils.uuid(), laneId: wId, dateStr: d(0),   type: 'type-task',      text: 'Write spec doc',          isDone: false, note: '' },
+                    { id: Utils.uuid(), laneId: wId, dateStr: d(0),   type: 'type-task',      text: 'Review pull request',     isDone: false, note: '' },
+                    { id: Utils.uuid(), laneId: wId, dateStr: d(-3),  type: 'type-task',      text: 'Set up project repo',     isDone: true,  note: '' },
+                    { id: Utils.uuid(), laneId: lId, dateStr: d(180), type: 'type-outcome',   text: 'Read 12 books this year', isDone: false, note: '' },
+                    { id: Utils.uuid(), laneId: lId, dateStr: d(30),  type: 'type-milestone', text: 'Book holiday flights',    isDone: false, note: '' },
+                    { id: Utils.uuid(), laneId: lId, dateStr: d(5),   type: 'type-event',     text: 'Birthday dinner',         isDone: false, note: '' },
+                    { id: Utils.uuid(), laneId: lId, dateStr: d(0),   type: 'type-task',      text: 'Call mum',                isDone: false, note: '' },
+                    { id: Utils.uuid(), laneId: hId, dateStr: d(90),  type: 'type-outcome',   text: 'Run a half marathon',     isDone: false, note: '' },
+                    { id: Utils.uuid(), laneId: hId, dateStr: d(21),  type: 'type-milestone', text: '10k park run',            isDone: false, note: '' },
+                    { id: Utils.uuid(), laneId: hId, dateStr: d(0),   type: 'type-task',      text: 'Morning run',             isDone: false, note: '' },
+                    { id: Utils.uuid(), laneId: hId, dateStr: d(-1),  type: 'type-task',      text: 'Meal prep for the week',  isDone: true,  note: '' },
+                ];
+                state.notes = []; state.projects = []; state.focus = {};
+                state.habitChecks = {
+                    [d(0)]:  { [hab1]: true },
+                    [d(-1)]: { [hab1]: true, [hab2]: true },
+                    [d(-2)]: { [hab2]: true },
+                };
+                state.diary = { [d(0)]: 'First day using Swimlane. Lots on at work but the health goals are looking achievable.' };
+                state.settings = { theme: 'dotted', horizonMode: 'all', habitMode: 'streak', showAchievements: false, showHorizon: true, habitsMin: false, diaryMin: false };
+                Store.save();
+                DOM.onboarding.classList.remove('is-open');
+                localStorage.setItem('swimlane_onboarded', 'true');
+                Render.hardRebuild();
+                setTimeout(() => VirtualScroll.seekToDate(Utils.todayStr), 150);
+            }
         };
 
         // ─── RENDER ───────────────────────────────────────────────────────────────
@@ -1743,7 +1827,7 @@
                                     <span class="type-badge action-btn" role="button" tabindex="0" data-action="cycleType" style="margin-right: 8px;">${typeConfig.label}</span>
                                     ${projBadge}
                                 </div>
-                                <input class="index-text action-input" data-action="editTask" data-id="${data.id}" value="${Utils.escape(data.text)}" spellcheck="false" autocomplete="off">
+                                <span class="index-text">${Utils.escape(data.text)}</span>
                                 <span class="hz-nav action-btn" role="button" tabindex="0" data-action="seekToDate" data-val="${data.dateStr}" data-id="${data.id}" title="Scroll to date">↗</span>
                                 <span class="index-days">${timeStr}</span>
                             `;
@@ -2253,7 +2337,12 @@
                         const action = btn.dataset.action;
                         if (e.type === 'click' && btn.getAttribute('role') === 'button') { e.target.blur(); } 
                         
-                        if(action === 'toggleSettings') document.getElementById('settings-tray').classList.toggle('is-open');
+                        if(action === 'toggleSettings') {
+                            const tray = document.getElementById('settings-tray');
+                            const isOpening = !tray.classList.contains('is-open');
+                            tray.classList.toggle('is-open');
+                            if(isOpening && state.settings.showHorizon) Actions.toggleHorizon();
+                        }
                         if(action === 'setTheme') Actions.toggleSetting('theme', btn.dataset.val);
                         if(action === 'setHzMode') Actions.toggleSetting('horizonMode', btn.dataset.val);
                         if(action === 'toggleAchievements') Actions.toggleAchievement();
@@ -2262,9 +2351,11 @@
                         if(action === 'toggleDiaryMin') Actions.toggleDiaryMin();
                         if(action === 'closeOnboarding') { DOM.onboarding.classList.remove('is-open'); localStorage.setItem('swimlane_onboarded', 'true'); }
                         if(action === 'showOnboarding') DOM.onboarding.classList.add('is-open');
+                        if(action === 'startFresh') Actions.startFresh();
                         
                         if(action === 'exportData') Actions.exportData();
                         if(action === 'importData') Actions.importData();
+                        if(action === 'loadDemo') Actions.loadDemoData();
 
                         if(action === 'scrollToToday') VirtualScroll.seekToDate(Utils.todayStr);
                         if(action === 'seekToDate') VirtualScroll.seekToDate(btn.dataset.val, btn.dataset.id);
@@ -2351,7 +2442,7 @@
                         if(action === 'editLaneTitle') Actions.updateLaneTitle(e.target.dataset.id, e.target.value);
                         if(action === 'editDiary') Actions.updateDiary(e.target.dataset.date, e.target.value);
                         if(action === 'editTask') {
-                            const id = (e.target.closest('.item') || e.target.closest('.hz-item'))?.dataset.id;
+                            const id = e.target.closest('.item')?.dataset.id;
                             if (!id) return;
                             document.querySelectorAll(`.item[data-id="${id}"] .text-input`).forEach(el => { if(el !== e.target) el.value = e.target.value; });
                             clearTimeout(e.target._saveTimer); e.target._saveTimer = setTimeout(() => Actions.updateTaskText(id, e.target.value), 300);

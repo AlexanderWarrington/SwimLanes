@@ -8,6 +8,8 @@ An infinite-canvas daily journal organised into swimlanes (columns). Each lane t
 
 All data is stored in IndexedDB in your browser with a localStorage fallback. Nothing leaves your machine.
 
+**New to the app?** See [`docs/user-guide.md`](docs/user-guide.md) for a plain-language walkthrough of all features.
+
 ## How to open it
 
 Double-click `Swimlane_App.html`, or in PowerShell:
